@@ -14,9 +14,9 @@ import {
   TooltipTrigger,
   useDisclosure,
   useKeyboardShortcuts,
+  usePrettifyShortcut,
   VStack
 } from "@carbon/react";
-import { prettifyKeyboardShortcut } from "@carbon/utils";
 import { useRef, useState } from "react";
 import { LuCirclePlus, LuEllipsisVertical, LuTrash } from "react-icons/lu";
 import { Link, useParams } from "react-router";
@@ -30,6 +30,7 @@ import DeletePurchasingRFQLine from "./DeletePurchasingRFQLine";
 import PurchasingRFQLineForm from "./PurchasingRFQLineForm";
 
 export default function PurchasingRFQExplorer() {
+  const prettifyShortcut = usePrettifyShortcut();
   const { rfqId } = useParams();
   if (!rfqId) throw new Error("Could not find rfqId");
   const purchasingRfqData = useRouteData<{
@@ -126,7 +127,7 @@ export default function PurchasingRFQExplorer() {
             <TooltipContent>
               <HStack>
                 <span>New Line Item</span>
-                <Kbd>{prettifyKeyboardShortcut("Command+Shift+l")}</Kbd>
+                <Kbd>{prettifyShortcut("Command+Shift+l")}</Kbd>
               </HStack>
             </TooltipContent>
           </Tooltip>

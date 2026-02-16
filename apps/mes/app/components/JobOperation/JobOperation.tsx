@@ -1,6 +1,7 @@
 import type { Result } from "@carbon/auth";
 import { useCarbon } from "@carbon/auth";
 import type { Database } from "@carbon/database";
+import type { JSONContent } from "@carbon/react";
 import {
   Badge,
   Button,
@@ -15,7 +16,6 @@ import {
   Heading,
   HStack,
   IconButton,
-  type JSONContent,
   ModelViewer,
   Progress,
   ScrollArea,
@@ -62,6 +62,7 @@ import {
   LuCheck,
   LuChevronLeft,
   LuChevronRight,
+  LuCirclePlay,
   LuCirclePlus,
   LuClipboardCheck,
   LuDownload,
@@ -497,7 +498,7 @@ export const JobOperation = ({
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to={path.to.jobDetail(operation.jobId)}>
-                    <DropdownMenuIcon icon={<LuHardHat />} />
+                    <DropdownMenuIcon icon={<LuCirclePlay />} />
                     Job Details
                   </Link>
                 </DropdownMenuItem>

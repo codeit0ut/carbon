@@ -74,8 +74,8 @@ export const customerValidator = z.object({
   ),
   salesContactId: zfd.text(z.string().optional()),
   invoicingContactId: zfd.text(z.string().optional()),
-  website: zfd.text(z.string().optional()),
-  defaultCc: z.array(z.string().email()).default([])
+  website: zfd.text(z.string().optional())
+  // defaultCc: z.array(z.string().email()).default([])
 });
 
 export const customerPaymentValidator = z.object({
@@ -540,7 +540,8 @@ export const salesOrderStatusType = [
 export const salesConfirmValidator = z
   .object({
     notification: z.enum(["Email", "None"]).optional(),
-    customerContact: zfd.text(z.string().optional())
+    customerContact: zfd.text(z.string().optional()),
+    cc: z.array(z.string()).optional()
   })
   .refine(
     (data) => (data.notification === "Email" ? data.customerContact : true),

@@ -38,7 +38,6 @@ import {
   LuChevronRight,
   LuCirclePlay,
   LuCirclePlus,
-  LuHardHat,
   LuSettings2
 } from "react-icons/lu";
 import { useFetcher, useNavigate, useParams } from "react-router";
@@ -122,7 +121,7 @@ export function SalesOrderLineJobs({
           <CardAction>
             {hasJobs && (
               <Button
-                leftIcon={<LuHardHat />}
+                leftIcon={<LuCirclePlay />}
                 onClick={newJobDisclosure.onOpen}
               >
                 Make to Order

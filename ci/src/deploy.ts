@@ -75,8 +75,10 @@ async function deploy(): Promise<void> {
 
   if (error) {
     console.error("🔴 🍳 Failed to fetch workspaces", error);
-    return;
+    process.exit(1);
   }
+
+  let hasErrors = false;
 
   console.log("✅ 🛩️ Successfully retreived workspaces");
 
@@ -166,7 +168,9 @@ async function deploy(): Promise<void> {
       }
 
       if (!database_connection_pooler_url) {
-        console.log(`🔴🍳 Missing database connection pooler url for ${workspace.id}`);
+        console.log(
+          `🔴🍳 Missing database connection pooler url for ${workspace.id}`
+        );
         continue;
       }
 
@@ -286,10 +290,7 @@ async function deploy(): Promise<void> {
           STRIPE_SECRET_KEY: stripe_secret_key ?? undefined,
           STRIPE_WEBHOOK_SECRET: stripe_webhook_secret ?? undefined,
           SUPABASE_ANON_KEY: anon_key,
-          SUPABASE_ANON_PUBLIC: anon_key,
-          SUPABASE_API_URL: database_url,
           SUPABASE_DB_URL: database_connection_pooler_url,
-          SUPABASE_SERVICE_ROLE: service_role_key,
           SUPABASE_SERVICE_ROLE_KEY: service_role_key,
           SUPABASE_URL: database_url,
           TRIGGER_API_URL: trigger_api_url,
@@ -316,8 +317,19 @@ async function deploy(): Promise<void> {
       console.log(`✅ 🍗 Successfully deployed ${workspace.id}`);
     } catch (error) {
       console.error(`🔴 🍳 Failed to deploy ${workspace.id}`, error);
+      hasErrors = true;
     }
   }
+
+  if (hasErrors) {
+    console.error("🔴 Deployment completed with errors");
+    process.exit(1);
+  }
+
+  console.log("✅ All deployments completed successfully");
 }
 
-deploy();
+deploy().catch((error) => {
+  console.error("🔴 Unexpected error during deployment", error);
+  process.exit(1);
+});

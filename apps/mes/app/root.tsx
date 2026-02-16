@@ -13,7 +13,8 @@ import type { Theme } from "@carbon/utils";
 import { modeValidator, themes } from "@carbon/utils";
 import { I18nProvider } from "@react-aria/i18n";
 import { Analytics } from "@vercel/analytics/react";
-import React, { useEffect } from "react";
+import type React from "react";
+import { useEffect } from "react";
 import type {
   ActionFunctionArgs,
   LoaderFunctionArgs,
@@ -112,7 +113,7 @@ function Document({
   children,
   title = "Carbon",
   mode = "light",
-  theme = "blue"
+  theme = "zinc"
 }: {
   children: React.ReactNode;
   title?: string;
@@ -144,7 +145,7 @@ function Document({
   // Combine the styles with proper selectors
   const themeStyle = {
     ...(mode === "dark" ? darkVars : lightVars),
-    "--radius": "0.5rem"
+    "--radius": "0.675rem"
   } as React.CSSProperties;
 
   return (
@@ -179,7 +180,7 @@ export default function App() {
   const loaderData = useLoaderData<typeof loader>();
   const env = loaderData?.env ?? {};
   const result = loaderData?.result;
-  const theme = loaderData?.theme ?? "blue";
+  const theme = loaderData?.theme ?? "zinc";
   const prefs = loaderData?.preferences;
 
   /* Toast Messages */

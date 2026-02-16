@@ -1,12 +1,13 @@
-import { type Database, fetchAllFromTable, type Json } from "@carbon/database";
-import { PickPartial } from "@carbon/utils";
+import type { Database, Json } from "@carbon/database";
+import { fetchAllFromTable } from "@carbon/database";
+import type { PickPartial } from "@carbon/utils";
 import { getLocalTimeZone, now, today } from "@internationalized/date";
-import {
-  FunctionRegion,
-  type PostgrestError,
-  type PostgrestSingleResponse,
-  type SupabaseClient
+import type {
+  PostgrestError,
+  PostgrestSingleResponse,
+  SupabaseClient
 } from "@supabase/supabase-js";
+import { FunctionRegion } from "@supabase/supabase-js";
 import type { z } from "zod";
 import { getEmployeeJob } from "~/modules/people";
 import type { GenericQueryFilters } from "~/utils/query";
@@ -861,6 +862,18 @@ export async function getQuoteMakeMethod(
     .single();
 }
 
+export async function getRootQuoteMakeMethod(
+  client: SupabaseClient<Database>,
+  quoteLineId: string
+) {
+  return client
+    .from("quoteMakeMethod")
+    .select("*, ...item(itemType:type)")
+    .eq("quoteLineId", quoteLineId)
+    .is("parentMaterialId", null)
+    .single();
+}
+
 export async function getQuoteMethodTrees(
   client: SupabaseClient<Database>,
   quoteId: string
@@ -1574,7 +1587,11 @@ export async function upsertCustomer(
       })
 ) {
   if ("createdBy" in customer) {
-    return client.from("customer").insert([customer]).select("id").single();
+    return client
+      .from("customer")
+      .insert([customer])
+      .select("id, name")
+      .single();
   }
   return client
     .from("customer")

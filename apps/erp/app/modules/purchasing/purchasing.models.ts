@@ -238,7 +238,8 @@ export const purchaseOrderPaymentValidator = z.object({
 export const purchaseOrderFinalizeValidator = z
   .object({
     notification: z.enum(["Email", "None"]).optional(),
-    supplierContact: zfd.text(z.string().optional())
+    supplierContact: zfd.text(z.string().optional()),
+    cc: z.array(z.string()).optional()
   })
   .refine(
     (data) => (data.notification === "Email" ? data.supplierContact : true),
@@ -255,7 +256,8 @@ export const purchaseOrderApprovalValidator = z
       .min(1, { message: "Approval request is required" }),
     decision: z.enum(["Approved", "Rejected"]),
     notification: z.enum(["Email", "None"]).optional(),
-    supplierContact: zfd.text(z.string().optional())
+    supplierContact: zfd.text(z.string().optional()),
+    cc: z.array(z.string()).optional()
   })
   .refine(
     (data) => (data.notification === "Email" ? data.supplierContact : true),
@@ -286,8 +288,8 @@ export const supplierValidator = z.object({
   currencyCode: zfd.text(z.string().optional()),
   purchasingContactId: zfd.text(z.string().optional()),
   invoicingContactId: zfd.text(z.string().optional()),
-  website: zfd.text(z.string().optional()),
-  defaultCc: z.array(z.string().email()).default([])
+  website: zfd.text(z.string().optional())
+  // defaultCc: z.array(z.string().email()).default([])
 });
 
 export const supplierContactValidator = z.object({
@@ -470,5 +472,55 @@ export function isRfqEditable(status: string | null | undefined): boolean {
 export function isRfqLocked(status: string | null | undefined): boolean {
   return PURCHASING_RFQ_LOCKED_STATUSES.includes(
     status as (typeof PURCHASING_RFQ_LOCKED_STATUSES)[number]
+  );
+}
+
+// Purchase Order Locked Status Validation
+
+/**
+ * Purchase Order statuses that indicate the PO has been finalized/approved
+ * and is now "locked" - meaning only privileged users can make limited edits
+ */
+export const PURCHASE_ORDER_LOCKED_STATUSES = [
+  "To Receive",
+  "To Receive and Invoice",
+  "To Invoice",
+  "Completed"
+] as const;
+
+/**
+ * Purchase Order statuses that allow normal editing
+ */
+export const PURCHASE_ORDER_EDITABLE_STATUSES = [
+  "Draft",
+  "Planned",
+  "Needs Approval",
+  "Rejected"
+] as const;
+
+export type PurchaseOrderLockedStatus =
+  (typeof PURCHASE_ORDER_LOCKED_STATUSES)[number];
+export type PurchaseOrderEditableStatus =
+  (typeof PURCHASE_ORDER_EDITABLE_STATUSES)[number];
+
+/**
+ * Check if a PO status is "locked" (finalized/approved)
+ */
+export function isPurchaseOrderLocked(
+  status: (typeof purchaseOrderStatusType)[number] | null | undefined
+): boolean {
+  return PURCHASE_ORDER_LOCKED_STATUSES.includes(
+    status as PurchaseOrderLockedStatus
+  );
+}
+
+/**
+ * Check if a PO status allows normal editing
+ */
+export function isPurchaseOrderEditable(
+  status: (typeof purchaseOrderStatusType)[number] | null | undefined
+): boolean {
+  return PURCHASE_ORDER_EDITABLE_STATUSES.includes(
+    status as PurchaseOrderEditableStatus
   );
 }
