@@ -13,8 +13,7 @@ import { path } from "~/utils/path";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { client, companyId } = await requirePermissions(request, {
-    view: "parts",
-    role: "employee"
+    view: "parts"
   });
 
   const { supplierPartId } = params;
@@ -35,8 +34,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
   const { client, userId } = await requirePermissions(request, {
-    update: "parts",
-    role: "employee"
+    update: "parts"
   });
 
   const { itemId, supplierPartId } = params;

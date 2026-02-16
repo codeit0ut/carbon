@@ -199,7 +199,10 @@ const SupplierQuoteCompareDrawer = ({
                 <DrawerTitle>
                   {step === "compare"
                     ? "Compare Supplier Quotes"
-                    : `Create Order from ${selectedQuote?.supplier?.name ?? selectedQuote?.supplierQuoteId}`}
+                    : `Create Order from ${
+                        selectedQuote?.supplier?.name ??
+                        selectedQuote?.supplierQuoteId
+                      }`}
                 </DrawerTitle>
                 {step === "compare" && totalQuotes > 0 && (
                   <span className="text-sm text-muted-foreground">

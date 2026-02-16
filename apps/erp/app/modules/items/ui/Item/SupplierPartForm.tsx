@@ -31,10 +31,7 @@ import { path } from "~/utils/path";
 import { supplierPartValidator } from "../../items.models";
 
 type SupplierPartFormProps = {
-  initialValues: z.infer<typeof supplierPartValidator> & {
-    lastPurchaseDate?: string | null;
-    lastPOQuantity?: number | null;
-  };
+  initialValues: z.infer<typeof supplierPartValidator>;
   type: "Part" | "Service" | "Tool" | "Consumable" | "Material";
   unitOfMeasureCode: string;
   onClose: () => void;

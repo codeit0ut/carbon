@@ -32,8 +32,7 @@ const Row = <T extends object>({
   rowRef,
   selectedCell,
   onCellClick,
-  onCellUpdate,
-  onEditRow
+  onCellUpdate
 }: RowProps<T>) => {
   const onUpdate = onCellUpdate(row.index);
 
@@ -41,17 +40,7 @@ const Row = <T extends object>({
     <Tr
       key={row.id}
       ref={rowRef}
-      className={cn((rowIsClickable || onEditRow) && "cursor-pointer")}
-      onClick={
-        onEditRow
-          ? (e: React.MouseEvent) => {
-              // Don't trigger row click if clicking a button/menu inside the row
-              const target = e.target as HTMLElement;
-              if (target.closest("button, a, [role='menuitem']")) return;
-              onEditRow(row.original);
-            }
-          : undefined
-      }
+      className={cn(rowIsClickable && "cursor-pointer")}
     >
       {row.getVisibleCells().map((cell, columnIndex) => {
         const isSelected =
@@ -66,13 +55,9 @@ const Row = <T extends object>({
             // @ts-ignore
             editableComponents={editableComponents}
             editedCells={editedCells}
-            isSelected={onEditRow ? false : isSelected}
-            isEditing={onEditRow ? false : isEditing}
-            onClick={
-              onEditRow
-                ? undefined
-                : () => onCellClick(cell.row.index, columnIndex)
-            }
+            isSelected={isSelected}
+            isEditing={isEditing}
+            onClick={() => onCellClick(cell.row.index, columnIndex)}
             onUpdate={onUpdate}
           />
         );

@@ -1,7 +1,7 @@
 import { assertIsPost, success } from "@carbon/auth";
 import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
-import { validator } from "@carbon/form";
+import { validationError, validator } from "@carbon/form";
 import { useRouteData } from "@carbon/remix";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { redirect, useLoaderData, useNavigate, useParams } from "react-router";
@@ -13,8 +13,7 @@ import { path } from "~/utils/path";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { client, companyId } = await requirePermissions(request, {
-    view: "parts",
-    role: "employee"
+    view: "parts"
   });
 
   const { supplierPartId } = params;
@@ -35,8 +34,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
   const { client, userId } = await requirePermissions(request, {
-    update: "parts",
-    role: "employee"
+    update: "parts"
   });
 
   const { itemId, supplierPartId } = params;
@@ -47,7 +45,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const validation = await validator(supplierPartValidator).validate(formData);
 
   if (validation.error) {
-    return { success: false, message: "Invalid form data" };
+    return validationError(validation.error);
   }
 
   // biome-ignore lint/correctness/noUnusedVariables: suppressed due to migration
