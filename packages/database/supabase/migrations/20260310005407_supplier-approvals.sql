@@ -1,5 +1,6 @@
 ALTER TABLE "companySettings" ADD COLUMN "supplierApproval" BOOLEAN NOT NULL DEFAULT false;
 ALTER TYPE "approvalDocumentType" ADD VALUE 'supplier';
+COMMIT;
 
 -- Recreate suppliers view
 DROP VIEW IF EXISTS "suppliers";

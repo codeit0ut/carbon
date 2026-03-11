@@ -678,177 +678,6 @@ export default {
         tags: ["noQuoteReason"],
       },
     },
-    "/supplierStatus": {
-      get: {
-        parameters: [
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.id",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.name",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.companyId",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.createdAt",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.createdBy",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.updatedBy",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.updatedAt",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.customFields",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.tags",
-          },
-          {
-            $ref: "#/parameters/select",
-          },
-          {
-            $ref: "#/parameters/order",
-          },
-          {
-            $ref: "#/parameters/range",
-          },
-          {
-            $ref: "#/parameters/rangeUnit",
-          },
-          {
-            $ref: "#/parameters/offset",
-          },
-          {
-            $ref: "#/parameters/limit",
-          },
-          {
-            $ref: "#/parameters/preferCount",
-          },
-        ],
-        responses: {
-          "200": {
-            description: "OK",
-            schema: {
-              items: {
-                $ref: "#/definitions/supplierStatus",
-              },
-              type: "array",
-            },
-          },
-          "206": {
-            description: "Partial Content",
-          },
-        },
-        tags: ["supplierStatus"],
-      },
-      post: {
-        parameters: [
-          {
-            $ref: "#/parameters/body.supplierStatus",
-          },
-          {
-            $ref: "#/parameters/select",
-          },
-          {
-            $ref: "#/parameters/preferPost",
-          },
-        ],
-        responses: {
-          "201": {
-            description: "Created",
-          },
-        },
-        tags: ["supplierStatus"],
-      },
-      delete: {
-        parameters: [
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.id",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.name",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.companyId",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.createdAt",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.createdBy",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.updatedBy",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.updatedAt",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.customFields",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.tags",
-          },
-          {
-            $ref: "#/parameters/preferReturn",
-          },
-        ],
-        responses: {
-          "204": {
-            description: "No Content",
-          },
-        },
-        tags: ["supplierStatus"],
-      },
-      patch: {
-        parameters: [
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.id",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.name",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.companyId",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.createdAt",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.createdBy",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.updatedBy",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.updatedAt",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.customFields",
-          },
-          {
-            $ref: "#/parameters/rowFilter.supplierStatus.tags",
-          },
-          {
-            $ref: "#/parameters/body.supplierStatus",
-          },
-          {
-            $ref: "#/parameters/preferReturn",
-          },
-        ],
-        responses: {
-          "204": {
-            description: "No Content",
-          },
-        },
-        tags: ["supplierStatus"],
-      },
-    },
     "/service": {
       get: {
         parameters: [
@@ -31522,7 +31351,7 @@ export default {
             $ref: "#/parameters/rowFilter.suppliers.supplierTypeId",
           },
           {
-            $ref: "#/parameters/rowFilter.suppliers.supplierStatusId",
+            $ref: "#/parameters/rowFilter.suppliers.status",
           },
           {
             $ref: "#/parameters/rowFilter.suppliers.taxId",
@@ -31583,9 +31412,6 @@ export default {
           },
           {
             $ref: "#/parameters/rowFilter.suppliers.type",
-          },
-          {
-            $ref: "#/parameters/rowFilter.suppliers.status",
           },
           {
             $ref: "#/parameters/rowFilter.suppliers.orderCount",
@@ -56170,9 +55996,6 @@ export default {
             $ref: "#/parameters/rowFilter.supplier.supplierTypeId",
           },
           {
-            $ref: "#/parameters/rowFilter.supplier.supplierStatusId",
-          },
-          {
             $ref: "#/parameters/rowFilter.supplier.taxId",
           },
           {
@@ -56231,6 +56054,9 @@ export default {
           },
           {
             $ref: "#/parameters/rowFilter.supplier.vatNumber",
+          },
+          {
+            $ref: "#/parameters/rowFilter.supplier.supplierStatus",
           },
           {
             $ref: "#/parameters/select",
@@ -56301,9 +56127,6 @@ export default {
             $ref: "#/parameters/rowFilter.supplier.supplierTypeId",
           },
           {
-            $ref: "#/parameters/rowFilter.supplier.supplierStatusId",
-          },
-          {
             $ref: "#/parameters/rowFilter.supplier.taxId",
           },
           {
@@ -56362,6 +56185,9 @@ export default {
           },
           {
             $ref: "#/parameters/rowFilter.supplier.vatNumber",
+          },
+          {
+            $ref: "#/parameters/rowFilter.supplier.supplierStatus",
           },
           {
             $ref: "#/parameters/preferReturn",
@@ -56386,9 +56212,6 @@ export default {
             $ref: "#/parameters/rowFilter.supplier.supplierTypeId",
           },
           {
-            $ref: "#/parameters/rowFilter.supplier.supplierStatusId",
-          },
-          {
             $ref: "#/parameters/rowFilter.supplier.taxId",
           },
           {
@@ -56447,6 +56270,9 @@ export default {
           },
           {
             $ref: "#/parameters/rowFilter.supplier.vatNumber",
+          },
+          {
+            $ref: "#/parameters/rowFilter.supplier.supplierStatus",
           },
           {
             $ref: "#/parameters/body.supplier",
@@ -62815,6 +62641,9 @@ export default {
             $ref: "#/parameters/rowFilter.companySettings.quoteLineCategoryMarkups",
           },
           {
+            $ref: "#/parameters/rowFilter.companySettings.supplierApproval",
+          },
+          {
             $ref: "#/parameters/select",
           },
           {
@@ -62967,6 +62796,9 @@ export default {
             $ref: "#/parameters/rowFilter.companySettings.quoteLineCategoryMarkups",
           },
           {
+            $ref: "#/parameters/rowFilter.companySettings.supplierApproval",
+          },
+          {
             $ref: "#/parameters/preferReturn",
           },
         ],
@@ -63071,6 +62903,9 @@ export default {
           },
           {
             $ref: "#/parameters/rowFilter.companySettings.quoteLineCategoryMarkups",
+          },
+          {
+            $ref: "#/parameters/rowFilter.companySettings.supplierApproval",
           },
           {
             $ref: "#/parameters/body.companySettings",
@@ -69821,59 +69656,6 @@ export default {
       },
       type: "object",
     },
-    supplierStatus: {
-      required: ["id", "name", "companyId", "createdAt", "createdBy"],
-      properties: {
-        id: {
-          default: "public.id('ss'::text)",
-          description: "Note:\nThis is a Primary Key.<pk/>",
-          format: "text",
-          type: "string",
-        },
-        name: {
-          format: "text",
-          type: "string",
-        },
-        companyId: {
-          description:
-            "Note:\nThis is a Foreign Key to `company.id`.<fk table='company' column='id'/>",
-          format: "text",
-          type: "string",
-        },
-        createdAt: {
-          default: "now()",
-          format: "timestamp with time zone",
-          type: "string",
-        },
-        createdBy: {
-          description:
-            "Note:\nThis is a Foreign Key to `user.id`.<fk table='user' column='id'/>",
-          format: "text",
-          type: "string",
-        },
-        updatedBy: {
-          description:
-            "Note:\nThis is a Foreign Key to `user.id`.<fk table='user' column='id'/>",
-          format: "text",
-          type: "string",
-        },
-        updatedAt: {
-          format: "timestamp with time zone",
-          type: "string",
-        },
-        customFields: {
-          format: "jsonb",
-        },
-        tags: {
-          format: "text[]",
-          items: {
-            type: "string",
-          },
-          type: "array",
-        },
-      },
-      type: "object",
-    },
     service: {
       required: [
         "id",
@@ -71327,7 +71109,7 @@ export default {
           type: "string",
         },
         documentType: {
-          enum: ["purchaseOrder", "qualityDocument"],
+          enum: ["purchaseOrder", "qualityDocument", "supplier"],
           format: 'public."approvalDocumentType"',
           type: "string",
         },
@@ -73431,7 +73213,7 @@ export default {
       properties: {
         id: {
           description:
-            "Note:\nThis is a Primary Key.<pk/>\nThis is a Foreign Key to `supplierLocation.id`.<fk table='supplierLocation' column='id'/>",
+            "Note:\nThis is a Foreign Key to `supplierLocation.id`.<fk table='supplierLocation' column='id'/>",
           format: "text",
           type: "string",
         },
@@ -73480,7 +73262,7 @@ export default {
         },
         supplierLocationId: {
           description:
-            "Note:\nThis is a Foreign Key to `supplierLocation.id`.<fk table='supplierLocation' column='id'/>",
+            "Note:\nThis is a Primary Key.<pk/>\nThis is a Foreign Key to `supplierLocation.id`.<fk table='supplierLocation' column='id'/>",
           format: "text",
           type: "string",
         },
@@ -84086,10 +83868,9 @@ export default {
           format: "text",
           type: "string",
         },
-        supplierStatusId: {
-          description:
-            "Note:\nThis is a Foreign Key to `supplierStatus.id`.<fk table='supplierStatus' column='id'/>",
-          format: "text",
+        status: {
+          enum: ["Active", "Inactive", "Pending", "Rejected"],
+          format: 'public."supplierStatusType"',
           type: "string",
         },
         taxId: {
@@ -84187,10 +83968,6 @@ export default {
           type: "array",
         },
         type: {
-          format: "text",
-          type: "string",
-        },
-        status: {
           format: "text",
           type: "string",
         },
@@ -88650,7 +88427,7 @@ export default {
           type: "string",
         },
         documentType: {
-          enum: ["purchaseOrder", "qualityDocument"],
+          enum: ["purchaseOrder", "qualityDocument", "supplier"],
           format: 'public."approvalDocumentType"',
           type: "string",
         },
@@ -96013,12 +95790,6 @@ export default {
           format: "text",
           type: "string",
         },
-        supplierStatusId: {
-          description:
-            "Note:\nThis is a Foreign Key to `supplierStatus.id`.<fk table='supplierStatus' column='id'/>",
-          format: "text",
-          type: "string",
-        },
         taxId: {
           format: "text",
           type: "string",
@@ -96118,6 +95889,11 @@ export default {
         },
         vatNumber: {
           format: "text",
+          type: "string",
+        },
+        supplierStatus: {
+          enum: ["Active", "Inactive", "Pending", "Rejected"],
+          format: 'public."supplierStatusType"',
           type: "string",
         },
       },
@@ -99275,6 +99051,7 @@ export default {
         "includeThumbnailsOnSalesPdfs",
         "includeThumbnailsOnPurchasingPdfs",
         "jobTravelerIncludeWorkInstructions",
+        "supplierApproval",
       ],
       properties: {
         id: {
@@ -99455,6 +99232,11 @@ export default {
         quoteLineCategoryMarkups: {
           format: "jsonb",
         },
+        supplierApproval: {
+          default: false,
+          format: "boolean",
+          type: "boolean",
+        },
       },
       type: "object",
     },
@@ -99544,7 +99326,7 @@ export default {
           type: "string",
         },
         documentType: {
-          enum: ["purchaseOrder", "qualityDocument"],
+          enum: ["purchaseOrder", "qualityDocument", "supplier"],
           format: 'public."approvalDocumentType"',
           type: "string",
         },
@@ -100301,69 +100083,6 @@ export default {
     },
     "rowFilter.noQuoteReason.customFields": {
       name: "customFields",
-      required: false,
-      in: "query",
-      type: "string",
-    },
-    "body.supplierStatus": {
-      name: "supplierStatus",
-      description: "supplierStatus",
-      required: false,
-      in: "body",
-      schema: {
-        $ref: "#/definitions/supplierStatus",
-      },
-    },
-    "rowFilter.supplierStatus.id": {
-      name: "id",
-      required: false,
-      in: "query",
-      type: "string",
-    },
-    "rowFilter.supplierStatus.name": {
-      name: "name",
-      required: false,
-      in: "query",
-      type: "string",
-    },
-    "rowFilter.supplierStatus.companyId": {
-      name: "companyId",
-      required: false,
-      in: "query",
-      type: "string",
-    },
-    "rowFilter.supplierStatus.createdAt": {
-      name: "createdAt",
-      required: false,
-      in: "query",
-      type: "string",
-    },
-    "rowFilter.supplierStatus.createdBy": {
-      name: "createdBy",
-      required: false,
-      in: "query",
-      type: "string",
-    },
-    "rowFilter.supplierStatus.updatedBy": {
-      name: "updatedBy",
-      required: false,
-      in: "query",
-      type: "string",
-    },
-    "rowFilter.supplierStatus.updatedAt": {
-      name: "updatedAt",
-      required: false,
-      in: "query",
-      type: "string",
-    },
-    "rowFilter.supplierStatus.customFields": {
-      name: "customFields",
-      required: false,
-      in: "query",
-      type: "string",
-    },
-    "rowFilter.supplierStatus.tags": {
-      name: "tags",
       required: false,
       in: "query",
       type: "string",
@@ -116444,8 +116163,8 @@ export default {
       in: "query",
       type: "string",
     },
-    "rowFilter.suppliers.supplierStatusId": {
-      name: "supplierStatusId",
+    "rowFilter.suppliers.status": {
+      name: "status",
       required: false,
       in: "query",
       type: "string",
@@ -116566,12 +116285,6 @@ export default {
     },
     "rowFilter.suppliers.type": {
       name: "type",
-      required: false,
-      in: "query",
-      type: "string",
-    },
-    "rowFilter.suppliers.status": {
-      name: "status",
       required: false,
       in: "query",
       type: "string",
@@ -130004,12 +129717,6 @@ export default {
       in: "query",
       type: "string",
     },
-    "rowFilter.supplier.supplierStatusId": {
-      name: "supplierStatusId",
-      required: false,
-      in: "query",
-      type: "string",
-    },
     "rowFilter.supplier.taxId": {
       name: "taxId",
       required: false,
@@ -130126,6 +129833,12 @@ export default {
     },
     "rowFilter.supplier.vatNumber": {
       name: "vatNumber",
+      required: false,
+      in: "query",
+      type: "string",
+    },
+    "rowFilter.supplier.supplierStatus": {
+      name: "supplierStatus",
       required: false,
       in: "query",
       type: "string",
@@ -133783,6 +133496,12 @@ export default {
     },
     "rowFilter.companySettings.quoteLineCategoryMarkups": {
       name: "quoteLineCategoryMarkups",
+      required: false,
+      in: "query",
+      type: "string",
+    },
+    "rowFilter.companySettings.supplierApproval": {
+      name: "supplierApproval",
       required: false,
       in: "query",
       type: "string",
