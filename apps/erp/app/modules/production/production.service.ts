@@ -1406,7 +1406,7 @@ export async function getProductionPlanning(
   }
 
   query = setGenericQueryFilters(query, args, [
-    { column: "readableIdWithRevision", ascending: true }
+    { column: "quantityToOrder", ascending: false }
   ]);
 
   return query;
