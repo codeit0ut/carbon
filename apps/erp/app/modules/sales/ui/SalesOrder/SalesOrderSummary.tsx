@@ -54,6 +54,14 @@ import type {
 } from "../../types";
 import { SalesOrderJobItem } from "./SalesOrderLineJobs";
 
+const getConvertedNonTaxableAddOnCost = (line: SalesOrderLine) =>
+  ((line as unknown as { convertedNonTaxableAddOnCost?: number | null })
+    .convertedNonTaxableAddOnCost ?? 0);
+
+const getNonTaxableAddOnCost = (line: SalesOrderLine) =>
+  ((line as unknown as { nonTaxableAddOnCost?: number | null })
+    .nonTaxableAddOnCost ?? 0);
+
 const SalesOrderSummary = ({
   onEditShippingCost
 }: {
@@ -72,6 +80,10 @@ const SalesOrderSummary = ({
         SalesInvoice,
         "id" | "invoiceId" | "status" | "totalAmount" | "currencyCode"
       >[];
+      invoiceTotals: {
+        totalInvoicedAmount: number;
+        totalPaidAmount: number;
+      };
     }>;
   }>(path.to.salesOrder(orderId));
 
@@ -96,7 +108,7 @@ const SalesOrderSummary = ({
         (line.convertedUnitPrice ?? 0) * (line.saleQuantity ?? 0);
       const addOns =
         (line.convertedAddOnCost ?? 0) +
-        (line.convertedNonTaxableAddOnCost ?? 0) +
+        getConvertedNonTaxableAddOnCost(line) +
         (line.convertedShippingCost ?? 0);
       return acc + lineTotal + addOns;
     }, 0) ?? 0;
@@ -281,18 +293,10 @@ const SalesOrderSummary = ({
               <Await resolve={routeData?.relatedItems}>
                 {(relatedItems) => {
                   const invoices = relatedItems?.invoices ?? [];
-                  const paidInvoices = invoices.filter(
-                    (invoice) => invoice.status === "Paid"
-                  );
-
-                  const totalInvoicedAmount = invoices.reduce(
-                    (acc, invoice) => acc + (invoice.totalAmount ?? 0),
-                    0
-                  );
-                  const totalPaidAmount = paidInvoices.reduce(
-                    (acc, invoice) => acc + (invoice.totalAmount ?? 0),
-                    0
-                  );
+                  const totalInvoicedAmount =
+                    relatedItems?.invoiceTotals?.totalInvoicedAmount ?? 0;
+                  const totalPaidAmount =
+                    relatedItems?.invoiceTotals?.totalPaidAmount ?? 0;
 
                   const moneyFormatter = new Intl.NumberFormat(locale, {
                     style: "currency",
@@ -428,7 +432,7 @@ function LineItems({
                               (line?.convertedAddOnCost ?? 0) +
                               (line?.convertedShippingCost ?? 0)) *
                               (1 + (line?.taxPercent ?? 0)) +
-                            (line?.convertedNonTaxableAddOnCost ?? 0)
+                            getConvertedNonTaxableAddOnCost(line)
                           }
                           format={{
                             style: "currency",
@@ -582,12 +586,12 @@ function LineItems({
                       </Tr>
                     )}
 
-                    {Number(line.nonTaxableAddOnCost ?? 0) > 0 && (
+                    {Number(getNonTaxableAddOnCost(line)) > 0 && (
                       <Tr>
                         <Td>Non-Taxable Charges</Td>
                         <Td className="text-right">
                           <MotionNumber
-                            value={line.nonTaxableAddOnCost ?? 0}
+                            value={getNonTaxableAddOnCost(line)}
                             format={{
                               style: "currency",
                               currency: currencyCode
@@ -606,7 +610,7 @@ function LineItems({
                             (line.convertedUnitPrice ?? 0) *
                               (line.saleQuantity ?? 0) +
                             (line.convertedAddOnCost ?? 0) +
-                            (line.convertedNonTaxableAddOnCost ?? 0) +
+                            getConvertedNonTaxableAddOnCost(line) +
                             (line.convertedShippingCost ?? 0)
                           }
                           format={{
@@ -650,7 +654,7 @@ function LineItems({
                               (line.convertedAddOnCost ?? 0) +
                               (line.convertedShippingCost ?? 0)) *
                               (1 + (line.taxPercent ?? 0)) +
-                            (line.convertedNonTaxableAddOnCost ?? 0)
+                            getConvertedNonTaxableAddOnCost(line)
                           }
                           format={{
                             style: "currency",

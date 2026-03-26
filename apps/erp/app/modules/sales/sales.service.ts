@@ -1233,7 +1233,7 @@ export async function getSalesOrderRelatedItems(
       .eq("opportunityId", opportunityId),
     client
       .from("salesInvoiceLine")
-      .select("invoiceId")
+      .select("invoiceId, quantity, unitPrice, shippingCost, addOnCost, taxPercent")
       .eq("salesOrderId", salesOrderId)
   ]);
 
@@ -1253,10 +1253,39 @@ export async function getSalesOrderRelatedItems(
           .in("id", invoiceIds)
       : { data: [], error: null };
 
+  const paidInvoiceIds = new Set(
+    (invoices.data ?? [])
+      .filter((invoice) => invoice.status === "Paid")
+      .map((invoice) => invoice.id)
+  );
+
+  const totalInvoicedAmount = (invoiceLines.data ?? []).reduce((acc, line) => {
+    const lineSubtotal =
+      (line.quantity ?? 0) * (line.unitPrice ?? 0) +
+      (line.shippingCost ?? 0) +
+      (line.addOnCost ?? 0);
+    const lineTax = lineSubtotal * (line.taxPercent ?? 0);
+    return acc + lineSubtotal + lineTax;
+  }, 0);
+
+  const totalPaidAmount = (invoiceLines.data ?? []).reduce((acc, line) => {
+    if (!line.invoiceId || !paidInvoiceIds.has(line.invoiceId)) return acc;
+    const lineSubtotal =
+      (line.quantity ?? 0) * (line.unitPrice ?? 0) +
+      (line.shippingCost ?? 0) +
+      (line.addOnCost ?? 0);
+    const lineTax = lineSubtotal * (line.taxPercent ?? 0);
+    return acc + lineSubtotal + lineTax;
+  }, 0);
+
   return {
     jobs: jobs.data ?? [],
     shipments: shipments.data ?? [],
-    invoices: invoices.data ?? []
+    invoices: invoices.data ?? [],
+    invoiceTotals: {
+      totalInvoicedAmount,
+      totalPaidAmount
+    }
   };
 }
 
