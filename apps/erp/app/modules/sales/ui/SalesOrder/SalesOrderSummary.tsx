@@ -30,7 +30,7 @@ import {
 import { useLocale } from "@react-aria/i18n";
 import { motion } from "framer-motion";
 import MotionNumber from "motion-number";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import {
   LuChevronRight,
   LuEllipsisVertical,
@@ -38,10 +38,11 @@ import {
   LuInfo,
   LuTriangleAlert
 } from "react-icons/lu";
-import { Link, useParams } from "react-router";
+import { Await, Link, useParams } from "react-router";
 import { CustomerAvatar, Hyperlink, MethodIcon } from "~/components";
 import { Confirm } from "~/components/Modals";
 import { usePercentFormatter, usePermissions, useRouteData } from "~/hooks";
+import type { SalesInvoice } from "~/modules/invoicing/types";
 import JobStatus from "~/modules/production/ui/Jobs/JobStatus";
 import { getPrivateUrl, path } from "~/utils/path";
 import { isSalesOrderLocked } from "../../sales.models";
@@ -49,7 +50,6 @@ import type {
   Customer,
   Quotation,
   SalesOrder,
-  SalesOrderJob,
   SalesOrderLine
 } from "../../types";
 import { SalesOrderJobItem } from "./SalesOrderLineJobs";
@@ -67,6 +67,12 @@ const SalesOrderSummary = ({
     lines: SalesOrderLine[];
     customer: Customer;
     quote: Quotation;
+    relatedItems: Promise<{
+      invoices: Pick<
+        SalesInvoice,
+        "id" | "invoiceId" | "status" | "totalAmount" | "currencyCode"
+      >[];
+    }>;
   }>(path.to.salesOrder(orderId));
 
   const salesOrderToJobsModal = useDisclosure();
@@ -264,6 +270,54 @@ const SalesOrderSummary = ({
               />
             </HStack>
           </VStack>
+          <div className="border-t mt-4 pt-4">
+            <Suspense
+              fallback={
+                <span className="text-sm text-muted-foreground">
+                  Loading invoice totals...
+                </span>
+              }
+            >
+              <Await resolve={routeData?.relatedItems}>
+                {(relatedItems) => {
+                  const invoices = relatedItems?.invoices ?? [];
+                  const paidInvoices = invoices.filter(
+                    (invoice) => invoice.status === "Paid"
+                  );
+
+                  const totalInvoicedAmount = invoices.reduce(
+                    (acc, invoice) => acc + (invoice.totalAmount ?? 0),
+                    0
+                  );
+                  const totalPaidAmount = paidInvoices.reduce(
+                    (acc, invoice) => acc + (invoice.totalAmount ?? 0),
+                    0
+                  );
+
+                  const moneyFormatter = new Intl.NumberFormat(locale, {
+                    style: "currency",
+                    currency:
+                      routeData?.salesOrder?.currencyCode ??
+                      invoices[0]?.currencyCode ??
+                      "USD"
+                  });
+
+                  return (
+                    <VStack spacing={2} className="w-full">
+                      <HStack className="w-full justify-between text-base text-muted-foreground">
+                        <span>Total Invoiced Amount:</span>
+                        <span>{moneyFormatter.format(totalInvoicedAmount)}</span>
+                      </HStack>
+                      <HStack className="w-full justify-between text-base text-muted-foreground">
+                        <span>Total Paid Amount:</span>
+                        <span>{moneyFormatter.format(totalPaidAmount)}</span>
+                      </HStack>
+                    </VStack>
+                  );
+                }}
+              </Await>
+            </Suspense>
+          </div>
         </CardContent>
       </Card>
     </>

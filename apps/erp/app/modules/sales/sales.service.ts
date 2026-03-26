@@ -1225,17 +1225,33 @@ export async function getSalesOrderRelatedItems(
   salesOrderId: string,
   opportunityId: string
 ) {
-  const [jobs, shipments, invoices] = await Promise.all([
+  const [jobs, shipments, invoiceLines] = await Promise.all([
     client.from("job").select("*").eq("salesOrderId", salesOrderId),
     client
       .from("shipment")
       .select("*, shipmentLine(*)")
       .eq("opportunityId", opportunityId),
     client
-      .from("salesInvoice")
-      .select("id, invoiceId, status")
-      .eq("opportunityId", opportunityId)
+      .from("salesInvoiceLine")
+      .select("invoiceId")
+      .eq("salesOrderId", salesOrderId)
   ]);
+
+  const invoiceIds = Array.from(
+    new Set(
+      (invoiceLines.data ?? [])
+        .map((line) => line.invoiceId)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  const invoices =
+    invoiceIds.length > 0
+      ? await client
+          .from("salesInvoice")
+          .select("id, invoiceId, status, totalAmount, currencyCode")
+          .in("id", invoiceIds)
+      : { data: [], error: null };
 
   return {
     jobs: jobs.data ?? [],
