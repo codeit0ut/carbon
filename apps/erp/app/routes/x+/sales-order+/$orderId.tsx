@@ -6,7 +6,6 @@ import { VStack } from "@carbon/react";
 import type { LoaderFunctionArgs } from "react-router";
 import { Outlet, redirect, useParams } from "react-router";
 import { PanelProvider, ResizablePanels } from "~/components/Layout/Panels";
-import { getSalesInvoice } from "~/modules/invoicing";
 import {
   getCustomer,
   getOpportunity,
@@ -14,6 +13,7 @@ import {
   getQuote,
   getSalesOrder,
   getSalesOrderInvoiceLines,
+  getSalesOrderInvoicesByIds,
   getSalesOrderLines,
   getSalesOrderRelatedItems
 } from "~/modules/sales";
@@ -97,28 +97,21 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   let currencyMismatchCount = 0;
 
   if (invoiceIds.length > 0) {
-    const invoiceResponses = await Promise.all(
-      invoiceIds.map((invoiceId) => getSalesInvoice(client, invoiceId))
-    );
+    const invoices = await getSalesOrderInvoicesByIds(client, invoiceIds);
 
-    const invoiceError = invoiceResponses.find(
-      (invoice) => invoice.error
-    )?.error;
-
-    if (invoiceError) {
+    if (invoices.error) {
       throw redirect(
         path.to.salesOrder(orderId),
         await flash(
           request,
-          error(invoiceError, "Failed to load sales invoice totals")
+          error(invoices.error, "Failed to load sales invoice totals")
         )
       );
     }
 
     const orderCurrency = salesOrder.data?.currencyCode;
 
-    for (const invoice of invoiceResponses.map((response) => response.data)) {
-      if (!invoice) continue;
+    for (const invoice of invoices.data ?? []) {
       const invoiceTotal = invoice.invoiceTotal ?? 0;
       const invoiceCurrency = invoice.currencyCode;
 

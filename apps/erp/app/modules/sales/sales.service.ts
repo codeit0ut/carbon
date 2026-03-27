@@ -1341,6 +1341,16 @@ export async function getSalesOrderInvoiceLines(
     .eq("salesOrderId", salesOrderId);
 }
 
+export async function getSalesOrderInvoicesByIds(
+  client: SupabaseClient<Database>,
+  invoiceIds: string[]
+) {
+  return client
+    .from("salesInvoices")
+    .select("id, invoiceTotal, status, currencyCode")
+    .in("id", invoiceIds);
+}
+
 export async function getSalesOrderLinesByItemId(
   client: SupabaseClient<Database>,
   itemId: string
