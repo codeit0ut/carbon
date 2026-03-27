@@ -6,12 +6,14 @@ import { VStack } from "@carbon/react";
 import type { LoaderFunctionArgs } from "react-router";
 import { Outlet, redirect, useParams } from "react-router";
 import { PanelProvider, ResizablePanels } from "~/components/Layout/Panels";
+import { getSalesInvoice } from "~/modules/invoicing";
 import {
   getCustomer,
   getOpportunity,
   getOpportunityDocuments,
   getQuote,
   getSalesOrder,
+  getSalesOrderInvoiceLines,
   getSalesOrderLines,
   getSalesOrderRelatedItems
 } from "~/modules/sales";
@@ -44,6 +46,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     getSalesOrderLines(client, orderId)
   ]);
 
+  if (salesOrder.error) {
+    throw redirect(
+      path.to.items,
+      await flash(request, error(salesOrder.error, "Failed to load salesOrder"))
+    );
+  }
+
   const opportunity = await getOpportunity(
     client,
     salesOrder.data?.opportunityId ?? null
@@ -55,23 +64,80 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   if (!opportunity.data) throw new Error("Failed to get opportunity record");
 
-  if (salesOrder.error) {
-    throw redirect(
-      path.to.items,
-      await flash(request, error(salesOrder.error, "Failed to load salesOrder"))
-    );
-  }
-
   const serviceRole = getCarbonServiceRole();
-  const [quote, customer, companySettings] = await Promise.all([
+  const [quote, customer, companySettings, invoiceLines] = await Promise.all([
     opportunity.data.quotes[0]?.id
       ? getQuote(client, opportunity.data.quotes[0].id)
       : Promise.resolve(null),
     salesOrder.data?.customerId
       ? getCustomer(client, salesOrder.data.customerId)
       : Promise.resolve(null),
-    getCompanySettings(serviceRole, companyId)
+    getCompanySettings(serviceRole, companyId),
+    getSalesOrderInvoiceLines(client, orderId)
   ]);
+
+  if (invoiceLines.error) {
+    throw redirect(
+      path.to.salesOrder(orderId),
+      await flash(
+        request,
+        error(invoiceLines.error, "Failed to load linked sales invoices")
+      )
+    );
+  }
+
+  const invoiceIds = Array.from(
+    new Set(
+      (invoiceLines.data ?? []).map((line) => line.invoiceId).filter(Boolean)
+    )
+  ) as string[];
+
+  let invoicedAmount = 0;
+  let paidAmount = 0;
+  let currencyMismatchCount = 0;
+
+  if (invoiceIds.length > 0) {
+    const invoiceResponses = await Promise.all(
+      invoiceIds.map((invoiceId) => getSalesInvoice(client, invoiceId))
+    );
+
+    const invoiceError = invoiceResponses.find(
+      (invoice) => invoice.error
+    )?.error;
+
+    if (invoiceError) {
+      throw redirect(
+        path.to.salesOrder(orderId),
+        await flash(
+          request,
+          error(invoiceError, "Failed to load sales invoice totals")
+        )
+      );
+    }
+
+    const orderCurrency = salesOrder.data?.currencyCode;
+
+    for (const invoice of invoiceResponses.map((response) => response.data)) {
+      if (!invoice) continue;
+      const invoiceTotal = invoice.invoiceTotal ?? 0;
+      const invoiceCurrency = invoice.currencyCode;
+
+      // Avoid mixing currencies in the same displayed number.
+      if (
+        orderCurrency &&
+        invoiceCurrency &&
+        invoiceCurrency !== orderCurrency
+      ) {
+        currencyMismatchCount += 1;
+        continue;
+      }
+
+      invoicedAmount += invoiceTotal;
+      if (invoice.status === "Paid") {
+        paidAmount += invoiceTotal;
+      }
+    }
+  }
 
   const defaultCc = customer?.data?.defaultCc?.length
     ? customer.data.defaultCc
@@ -89,6 +155,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     opportunity: opportunity.data,
     customer: customer?.data ?? null,
     quote: quote?.data ?? null,
+    invoiceSummary: {
+      invoicedAmount,
+      paidAmount,
+      currencyMismatchCount
+    },
     originatedFromQuote: !!opportunity.data.quotes[0]?.id,
     defaultCc
   };
