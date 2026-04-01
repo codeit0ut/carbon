@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
   HStack,
   IconButton,
+  Input,
   Label,
   Tooltip,
   TooltipContent,
@@ -627,6 +628,7 @@ function MaterialForm({
   });
   const sourcingDisclosure = useDisclosure();
   const backflushDisclosure = useDisclosure();
+  const itemRequestIdRef = useRef(0);
 
   useEffect(() => {
     // Remove from temporary items after successful submission
@@ -666,10 +668,12 @@ function MaterialForm({
     kit: item.data.kit ?? false,
     shelfIds: item.data.shelfIds ?? {}
   });
+  const [unitCost, setUnitCost] = useState<number>(0);
 
   const onTypeChange = (value: MethodItemType | "Item") => {
     if (value === itemType) return;
     setItemType(value as MethodItemType);
+    setUnitCost(0);
 
     setItemData({
       itemId: "",
@@ -688,8 +692,10 @@ function MaterialForm({
     if (!carbon) return;
     if (itemId === params.itemId) {
       toast.error("An item cannot be added to itself.");
+      setUnitCost(0);
       return;
     }
+    const requestId = ++itemRequestIdRef.current;
 
     const item = await carbon
       .from("item")
@@ -700,8 +706,12 @@ function MaterialForm({
       .eq("companyId", company.id)
       .single();
 
+    // Ignore stale responses from previous, slower requests.
+    if (requestId !== itemRequestIdRef.current) return;
+
     if (item.error) {
       toast.error("Failed to load item details");
+      setUnitCost(0);
       return;
     }
 
@@ -719,6 +729,39 @@ function MaterialForm({
   };
 
   const key = (field: string) => getFieldKey(field, item.id);
+  const hasRules = materialHasRules(item.id, rulesByField);
+  const baseCurrency = company?.baseCurrencyCode ?? "USD";
+  const currencyFormatter = new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: baseCurrency
+  });
+
+  useEffect(() => {
+    if (!carbon || !itemData.itemId || hasRules) {
+      setUnitCost(0);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadUnitCost = async () => {
+      const result = await carbon
+        .from("itemCost")
+        .select("unitCost")
+        .eq("itemId", itemData.itemId)
+        .eq("companyId", company.id)
+        .maybeSingle();
+
+      if (result.error || !isMounted) return;
+      setUnitCost(result.data?.unitCost ?? 0);
+    };
+
+    loadUnitCost();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [carbon, company.id, itemData.itemId, hasRules]);
 
   return (
     <ValidatedForm
@@ -820,6 +863,12 @@ function MaterialForm({
               : undefined
           }
         />
+        {!hasRules && (
+          <div className="w-full">
+            <Label>Unit Cost</Label>
+            <Input value={currencyFormatter.format(unitCost)} isReadOnly />
+          </div>
+        )}
       </div>
       {replenishmentSystem === "Buy and Make" && (
         <div className="border border-border rounded-md shadow-sm p-4 flex flex-col gap-4 w-full">
