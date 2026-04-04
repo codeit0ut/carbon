@@ -1,23 +1,51 @@
 import { Provider as ChatProvider } from "@ai-sdk-tools/store";
 import { cn } from "@carbon/react";
 import { getLocalTimeZone } from "@internationalized/date";
+import { Trans } from "@lingui/react/macro";
 import { useLocale } from "@react-aria/i18n";
 import type { ComponentProps } from "react";
 import { useMemo } from "react";
-import { Link } from "react-router";
+import { Link, useRouteLoaderData } from "react-router";
 import { ChatInterface } from "~/components/Chat";
 // import { DevTools } from "~/components/Chat/DevTools.client";
 import { useChatInterface } from "~/components/Chat/hooks/useChatInterface";
+import { DashboardLanguageSwitcher } from "~/components/DashboardLanguageSwitcher";
 import { Greeting } from "~/components/Greeting";
 import { useModules } from "~/hooks";
 import { useFlags } from "~/hooks/useFlags";
 import type { Authenticated, NavItem } from "~/types";
+import type { LinguiLocale } from "~/utils/lingui-locale";
+
+/**
+ * When true, `/x` shows the Lingui language bar above the chat prototype home.
+ * Module-tile home (`AppsPage`) always has its own switcher. Set to false to
+ * restore the old behavior (no language UI on chat-only home).
+ */
+const SHOW_LANGUAGE_SWITCHER_ON_CHAT_PROTOTYPE_HOME = true;
 
 export default function AppIndexRoute() {
   const { isCommunity, isControlledEnvironment, isInternal } = useFlags();
   const hasChatPrototype =
     (isInternal && !isControlledEnvironment) || isCommunity;
-  return hasChatPrototype ? <ChatPage /> : <AppsPage />;
+  const rootData = useRouteLoaderData("root") as
+    | { linguiLocale?: LinguiLocale }
+    | undefined;
+  const linguiLocale = rootData?.linguiLocale ?? "en";
+
+  if (hasChatPrototype) {
+    return (
+      <>
+        {SHOW_LANGUAGE_SWITCHER_ON_CHAT_PROTOTYPE_HOME ? (
+          <div className="border-border border-b bg-muted px-8 pt-8">
+            <DashboardLanguageSwitcher active={linguiLocale} />
+          </div>
+        ) : null}
+        <ChatPage />
+      </>
+    );
+  }
+
+  return <AppsPage />;
 }
 
 const ChatPage = () => {
@@ -35,6 +63,10 @@ const AppsPage = () => {
   const modules = useModules();
   const { locale } = useLocale();
   const date = new Date();
+  const rootData = useRouteLoaderData("root") as
+    | { linguiLocale?: LinguiLocale }
+    | undefined;
+  const linguiLocale = rootData?.linguiLocale ?? "en";
 
   const formatter = useMemo(
     () =>
@@ -46,7 +78,11 @@ const AppsPage = () => {
   );
   return (
     <div className="p-8 w-full h-full bg-muted">
+      <DashboardLanguageSwitcher active={linguiLocale} />
       <Greeting size="h3" />
+      <Subheading>
+        <Trans id="dashboard.subtitle">Select a module to open it.</Trans>
+      </Subheading>
       <Subheading>{formatter.format(date)}</Subheading>
       <Hr />
       <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-6 mb-8">

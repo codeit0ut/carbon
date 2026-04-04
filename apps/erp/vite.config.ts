@@ -1,6 +1,8 @@
+import { lingui } from "@lingui/vite-plugin";
 import { reactRouter } from "@react-router/dev/vite";
 import path from "node:path";
 import { defineConfig, PluginOption } from "vite";
+import macrosPlugin from "vite-plugin-babel-macros";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig(({ isSsrBuild }) => ({
@@ -33,7 +35,12 @@ export default defineConfig(({ isSsrBuild }) => ({
     port: 3000,
     allowedHosts: [".ngrok-free.app", ".ngrok-free.dev"],
   },
-  plugins: [reactRouter(), tsconfigPaths()] as PluginOption[],
+  plugins: [
+    reactRouter(),
+    macrosPlugin(),
+    lingui(),
+    tsconfigPaths()
+  ] as PluginOption[],
   resolve: {
     alias: {
       "@carbon/utils": path.resolve(

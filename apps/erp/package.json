@@ -28,6 +28,8 @@
     "@emoji-mart/react": "^1.1.1",
     "@epic-web/remember": "^1.1.0",
     "@internationalized/date": "^3.5.2",
+    "@lingui/core": "^5.9.4",
+    "@lingui/react": "^5.9.4",
     "@marsidev/react-turnstile": "^1.1.0",
     "@monaco-editor/react": "^4.6.0",
     "@nanostores/react": "^0.7.1",
@@ -103,6 +105,10 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@lingui/babel-plugin-lingui-macro": "^5.9.4",
+    "@lingui/cli": "^5.9.4",
+    "@lingui/vite-plugin": "^5.9.4",
+    "vite-plugin-babel-macros": "^1.0.6",
     "@carbon/config": "*",
     "@trigger.dev/build": "4.0.6",
     "@types/d3": "^7.4.0",
@@ -134,7 +140,9 @@
     "start": "NODE_ENV=production react-router-serve ./build/server/index.js",
     "typecheck": "tsgo --noEmit",
     "types": "tsgo --noEmit",
-    "typegen": "react-router typegen"
+    "typegen": "react-router typegen",
+    "i18n:extract": "lingui extract",
+    "i18n:compile": "lingui compile"
   },
   "sideEffects": false
 }

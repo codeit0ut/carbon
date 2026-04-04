@@ -12,11 +12,14 @@ import {
 import { getPreferenceHeaders, useMode } from "@carbon/remix";
 import type { Theme } from "@carbon/utils";
 import { modeValidator, themes } from "@carbon/utils";
+import type { Messages } from "@lingui/core";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider as LinguiProvider } from "@lingui/react";
 import { I18nProvider } from "@react-aria/i18n";
 import { QueryClient } from "@tanstack/react-query";
 import { Analytics } from "@vercel/analytics/react";
 import type React from "react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type {
   ActionFunctionArgs,
   LinksFunction,
@@ -29,18 +32,40 @@ import {
   Links,
   Meta,
   Outlet,
+  redirect,
   Scripts,
   ScrollRestoration,
   useLoaderData
 } from "react-router";
 import SonnerStyle from "sonner/dist/styles.css?url";
+import {
+  getI18nLangFromCookie,
+  setI18nLang
+} from "~/services/i18n-lang.server";
 import { getMode, setMode } from "~/services/mode.server";
 import Background from "~/styles/background.css?url";
 import NProgress from "~/styles/nprogress.css?url";
 import Tailwind from "~/styles/tailwind.css?url";
+import {
+  ariaLocaleForLingui,
+  isLinguiLocale,
+  type LinguiLocale,
+  toLinguiLocale
+} from "~/utils/lingui-locale";
+import { messages as messagesDe } from "../locales/de/messages.mjs";
+import { messages as messagesEn } from "../locales/en/messages.mjs";
+import { messages as messagesEs } from "../locales/es/messages.mjs";
+import { messages as messagesFr } from "../locales/fr/messages.mjs";
 import type { Route } from "./+types/root";
 import "./polyfill";
 import { getTheme } from "./services/theme.server";
+
+const linguiCatalogs: Record<LinguiLocale, Messages> = {
+  en: messagesEn,
+  es: messagesEs,
+  de: messagesDe,
+  fr: messagesFr
+};
 
 export const links: LinksFunction = () => {
   return [
@@ -84,6 +109,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
   const sessionFlash = await getSessionFlash(request);
 
+  const basePrefs = getPreferenceHeaders(request);
+  const fromCookie = getI18nLangFromCookie(request);
+  let locale = basePrefs.locale;
+  let linguiLocale: LinguiLocale = toLinguiLocale(basePrefs.locale);
+  if (fromCookie) {
+    linguiLocale = fromCookie;
+    locale = ariaLocaleForLingui(fromCookie);
+  }
+  const preferences = { ...basePrefs, locale };
+
   return data(
     {
       env: {
@@ -109,7 +144,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       },
       mode: getMode(request),
       theme: getTheme(request),
-      preferences: getPreferenceHeaders(request),
+      preferences,
+      linguiLocale,
+      messages: linguiCatalogs[linguiLocale],
       result: sessionFlash?.result
     },
     {
@@ -119,9 +156,24 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const validation = await validator(modeValidator).validate(
-    await request.formData()
-  );
+  const formData = await request.formData();
+
+  if (formData.get("intent") === "setLocale") {
+    const locale = String(formData.get("locale") ?? "");
+    if (!isLinguiLocale(locale)) {
+      return data(error({}, "Invalid locale"), { status: 400 });
+    }
+    const redirectToRaw = formData.get("redirectTo");
+    const redirectTo =
+      typeof redirectToRaw === "string" && redirectToRaw.startsWith("/")
+        ? redirectToRaw
+        : "/";
+    throw redirect(redirectTo, {
+      headers: { "Set-Cookie": setI18nLang(locale) }
+    });
+  }
+
+  const validation = await validator(modeValidator).validate(formData);
 
   if (validation.error) {
     return data(error(validation.error, "Invalid mode"), {
@@ -141,12 +193,15 @@ export function Document({
   children,
   title = "Carbon",
   mode = "light",
-  theme = "zinc"
+  theme = "zinc",
+  htmlLang = "en"
 }: {
   children: React.ReactNode;
   title?: string;
   mode?: "light" | "dark";
   theme?: string;
+  /** BCP 47 language tag for `<html lang>`. */
+  htmlLang?: string;
 }) {
   const selectedTheme = themes.find((t) => t.name === theme) as
     | Theme
@@ -178,7 +233,7 @@ export function Document({
 
   return (
     <html
-      lang="en"
+      lang={htmlLang}
       className={`${mode} h-full overflow-x-hidden`}
       style={themeStyle}
     >
@@ -209,8 +264,17 @@ export default function App() {
   const env = loaderData?.env ?? {};
   const result = loaderData?.result;
   const theme = loaderData?.theme ?? "zinc";
-  const prefs = loaderData?.preferences;
+  const prefs = loaderData.preferences;
+  const linguiLocale = loaderData.linguiLocale;
+  const messages = loaderData.messages;
   const mode = useMode();
+
+  const lingui = useMemo(() => {
+    const i18n = setupI18n();
+    i18n.load(linguiLocale, messages);
+    i18n.activate(linguiLocale);
+    return i18n;
+  }, [linguiLocale, messages]);
 
   useMount(() => {
     if (!window.clientCache) {
@@ -237,16 +301,18 @@ export default function App() {
 
   return (
     <OperatingSystemContextProvider platform={prefs.platform}>
-      <I18nProvider locale={prefs.locale}>
-        <Document mode={mode} theme={theme}>
-          <Outlet />
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `window.env = ${JSON.stringify(env)};`
-            }}
-          />
-        </Document>
-      </I18nProvider>
+      <LinguiProvider i18n={lingui}>
+        <I18nProvider locale={prefs.locale}>
+          <Document htmlLang={prefs.locale} mode={mode} theme={theme}>
+            <Outlet />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.env = ${JSON.stringify(env)};`
+              }}
+            />
+          </Document>
+        </I18nProvider>
+      </LinguiProvider>
     </OperatingSystemContextProvider>
   );
 }

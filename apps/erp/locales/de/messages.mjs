@@ -1,0 +1,1 @@
+/*eslint-disable*/export const messages=JSON.parse("{\"dashboard.language\":[\"Sprache\"],\"dashboard.subtitle\":[\"Wählen Sie ein Modul zum Öffnen.\"],\"greeting.afternoon\":[\"Guten Tag, \",[\"name\"]],\"greeting.evening\":[\"Guten Abend, \",[\"name\"]],\"greeting.morning\":[\"Guten Morgen, \",[\"name\"]]}");
