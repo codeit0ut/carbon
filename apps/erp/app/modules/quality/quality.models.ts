@@ -87,6 +87,36 @@ export const riskStatus = [
 
 export const riskRegisterType = ["Risk", "Opportunity"] as const;
 
+export const balloonCharacteristicType = [
+  "Critical",
+  "Major",
+  "Minor",
+  "Reference"
+] as const;
+
+export const ballooningDiagramValidator = z.object({
+  id: zfd.text(z.string().optional()),
+  name: z.string().min(1, { message: "Name is required" }),
+  drawingNumber: zfd.text(z.string().optional()),
+  revision: zfd.text(z.string().optional()),
+  pdfUrl: zfd.text(z.string().optional()),
+  annotations: zfd.text(z.string().optional()),
+  features: zfd.text(z.string().optional())
+});
+
+export const balloonFeatureValidator = z.object({
+  id: zfd.text(z.string().optional()),
+  ballooningDiagramId: z.string().min(1, { message: "Diagram is required" }),
+  balloonNumber: zfd.numeric(z.number().min(1)),
+  description: z.string().min(1, { message: "Description is required" }),
+  nominalValue: zfd.numeric(z.number().optional()),
+  tolerancePlus: zfd.numeric(z.number().optional()),
+  toleranceMinus: zfd.numeric(z.number().optional()),
+  unitOfMeasureCode: zfd.text(z.string().optional()),
+  characteristicType: z.enum(balloonCharacteristicType).optional(),
+  sortOrder: zfd.numeric(z.number().optional())
+});
+
 export const gaugeValidator = z.object({
   id: zfd.text(z.string().optional()),
   gaugeId: zfd.text(z.string().optional()),

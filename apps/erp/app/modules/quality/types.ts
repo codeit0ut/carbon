@@ -1,6 +1,8 @@
 import type { Database } from "@carbon/database";
 import type { nonConformanceAssociationType } from "./quality.models";
 import type {
+  getBallooningDiagram,
+  getBallooningDiagrams,
   getGaugeCalibrationRecords,
   getGauges,
   getGaugeTypes,
@@ -20,6 +22,48 @@ import type {
   getRequiredActions,
   getRisks
 } from "./quality.service";
+
+export type BallooningDiagram = NonNullable<
+  Awaited<ReturnType<typeof getBallooningDiagrams>>["data"]
+>[number];
+
+export type BallooningDiagramDetail = NonNullable<
+  Awaited<ReturnType<typeof getBallooningDiagram>>["data"]
+>;
+
+export type BalloonAnnotation = {
+  id: string;
+  balloonNumber: number;
+  x: number;
+  y: number;
+  page: number;
+  rect?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
+};
+
+export type BalloonFeature = {
+  id: string;
+  balloonNumber: number;
+  description: string;
+  nominalValue: number | null;
+  tolerancePlus: number | null;
+  toleranceMinus: number | null;
+  unitOfMeasureCode: string | null;
+  characteristicType: "Critical" | "Major" | "Minor" | "Reference" | null;
+  sortOrder: number;
+};
+
+export type BallooningDiagramContent = {
+  drawingNumber: string | null;
+  revision: string | null;
+  pdfUrl: string | null;
+  annotations: BalloonAnnotation[];
+  features: BalloonFeature[];
+};
 
 export type Gauge = NonNullable<
   Awaited<ReturnType<typeof getGauges>>["data"]

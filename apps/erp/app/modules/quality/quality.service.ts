@@ -10,6 +10,7 @@ import { sanitize } from "~/utils/supabase";
 
 import type { inspectionStatus } from "../shared";
 import type {
+  ballooningDiagramValidator,
   gaugeCalibrationRecordValidator,
   gaugeCalibrationStatus,
   gaugeTypeValidator,
@@ -1767,4 +1768,104 @@ export async function upsertRisk(
       .select("id")
       .single();
   }
+}
+
+// ─── Ballooning Diagrams ─────────────────────────────────────────────────────
+// Stored in qualityDocument with tags: ["ballooning"]
+// content JSON shape:
+//   { drawingNumber, revision, pdfUrl, annotations: [{id, balloonNumber, x, y, page}], features: [{...}] }
+
+export async function getBallooningDiagrams(
+  client: SupabaseClient<Database>,
+  companyId: string,
+  args?: { search: string | null } & GenericQueryFilters
+) {
+  let query = client
+    .from("qualityDocument")
+    .select("*", { count: "exact" })
+    .eq("companyId", companyId)
+    .contains("tags", ["ballooning"]);
+
+  if (args?.search) {
+    query = query.ilike("name", `%${args.search}%`);
+  }
+
+  query = setGenericQueryFilters(query, args ?? {}, [
+    { column: "name", ascending: true }
+  ]);
+
+  return query;
+}
+
+export async function getBallooningDiagram(
+  client: SupabaseClient<Database>,
+  id: string
+) {
+  return client.from("qualityDocument").select("*").eq("id", id).single();
+}
+
+export async function upsertBallooningDiagram(
+  client: SupabaseClient<Database>,
+  diagram: Omit<z.infer<typeof ballooningDiagramValidator>, "id"> & {
+    id?: string;
+    companyId: string;
+    createdBy: string;
+    updatedBy?: string;
+    features?: string;
+  }
+) {
+  const {
+    id,
+    name,
+    drawingNumber,
+    revision,
+    pdfUrl,
+    annotations,
+    features,
+    companyId,
+    createdBy,
+    updatedBy
+  } = diagram;
+
+  const content = {
+    drawingNumber: drawingNumber ?? null,
+    revision: revision ?? null,
+    pdfUrl: pdfUrl ?? null,
+    annotations: annotations ? JSON.parse(annotations) : [],
+    features: features ? JSON.parse(features) : []
+  };
+
+  if (id) {
+    return client
+      .from("qualityDocument")
+      .update({
+        name,
+        content,
+        updatedBy: updatedBy ?? createdBy,
+        updatedAt: new Date().toISOString()
+      })
+      .eq("id", id)
+      .select("id")
+      .single();
+  } else {
+    return client
+      .from("qualityDocument")
+      .insert({
+        name,
+        content,
+        companyId,
+        createdBy,
+        tags: ["ballooning"],
+        status: "Active"
+      })
+      .select("id")
+      .single();
+  }
+}
+
+export async function deleteBallooningDiagram(
+  client: SupabaseClient<Database>,
+  id: string
+) {
+  return client.from("qualityDocument").delete().eq("id", id);
 }

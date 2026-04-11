@@ -9,6 +9,7 @@ import {
   LuShieldAlert,
   LuShieldX,
   LuSquareCheck,
+  LuTarget,
   LuWorkflow
 } from "react-icons/lu";
 import { usePermissions } from "~/hooks";
@@ -58,6 +59,16 @@ export default function useQualitySubmodules() {
           name: t`Records`,
           to: path.to.calibrations,
           icon: <LuCircleGauge />
+        }
+      ]
+    },
+    {
+      name: t`Inspection`,
+      routes: [
+        {
+          name: t`Ballooning Diagrams`,
+          to: path.to.ballooningDiagrams,
+          icon: <LuTarget />
         }
       ]
     },

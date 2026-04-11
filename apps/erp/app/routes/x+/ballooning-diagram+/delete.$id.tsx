@@ -1,0 +1,34 @@
+import { assertIsPost, error, success } from "@carbon/auth";
+import { requirePermissions } from "@carbon/auth/auth.server";
+import { flash } from "@carbon/auth/session.server";
+import type { ActionFunctionArgs } from "react-router";
+import { redirect } from "react-router";
+import { deleteBallooningDiagram } from "~/modules/quality";
+import { path } from "~/utils/path";
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  assertIsPost(request);
+  const { client } = await requirePermissions(request, {
+    delete: "quality"
+  });
+
+  const { id } = params;
+  if (!id) throw new Error("Could not find id");
+
+  const result = await deleteBallooningDiagram(client, id);
+
+  if (result.error) {
+    throw redirect(
+      path.to.ballooningDiagrams,
+      await flash(
+        request,
+        error(result.error, "Failed to delete ballooning diagram")
+      )
+    );
+  }
+
+  throw redirect(
+    path.to.ballooningDiagrams,
+    await flash(request, success("Ballooning diagram deleted"))
+  );
+}

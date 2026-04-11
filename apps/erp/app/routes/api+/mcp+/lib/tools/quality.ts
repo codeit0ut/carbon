@@ -78,6 +78,10 @@ import {
   upsertQualityDocument,
   upsertQualityDocumentStep,
   upsertRisk,
+  getBallooningDiagrams,
+  getBallooningDiagram,
+  upsertBallooningDiagram,
+  deleteBallooningDiagram,
 } from "~/modules/quality/quality.service";
 import {
   nonConformanceReviewerValidator,
@@ -90,6 +94,7 @@ import {
   qualityDocumentValidator,
   qualityDocumentStepValidator,
   riskRegisterValidator,
+  ballooningDiagramValidator,
 } from "~/modules/quality/quality.models";
 
 export const registerQualityTools: RegisterTools = (server, ctx) => {
@@ -1167,5 +1172,68 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
       const result = await upsertRisk(ctx.client, { ...params.risk, companyId: ctx.companyId, createdBy: ctx.userId, updatedBy: ctx.userId });
       return toMcpResult(result);
     }, "Failed: quality_upsertRisk"),
+  );
+
+  server.registerTool(
+    "quality_getBallooningDiagrams",
+    {
+      description: "get ballooning diagrams",
+      inputSchema: {
+      args: z.object({
+    limit: z.number().int().default(100),
+    offset: z.number().int().default(0)
+  }).optional(),
+    },
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    withErrorHandling(async (params) => {
+      const result = await getBallooningDiagrams(ctx.client, ctx.companyId, params.args);
+      return toMcpResult(result);
+    }, "Failed: quality_getBallooningDiagrams"),
+  );
+
+  server.registerTool(
+    "quality_getBallooningDiagram",
+    {
+      description: "get ballooning diagram",
+      inputSchema: {
+      id: z.string(),
+    },
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    withErrorHandling(async (params) => {
+      const result = await getBallooningDiagram(ctx.client, params.id);
+      return toMcpResult(result);
+    }, "Failed: quality_getBallooningDiagram"),
+  );
+
+  server.registerTool(
+    "quality_upsertBallooningDiagram",
+    {
+      description: "upsert ballooning diagram",
+      inputSchema: {
+      diagram: ballooningDiagramValidator,
+    },
+      annotations: WRITE_ANNOTATIONS,
+    },
+    withErrorHandling(async (params) => {
+      const result = await upsertBallooningDiagram(ctx.client, { ...params.diagram, companyId: ctx.companyId, createdBy: ctx.userId, updatedBy: ctx.userId });
+      return toMcpResult(result);
+    }, "Failed: quality_upsertBallooningDiagram"),
+  );
+
+  server.registerTool(
+    "quality_deleteBallooningDiagram",
+    {
+      description: "delete ballooning diagram",
+      inputSchema: {
+      id: z.string(),
+    },
+      annotations: DESTRUCTIVE_ANNOTATIONS,
+    },
+    withErrorHandling(async (params) => {
+      const result = await deleteBallooningDiagram(ctx.client, params.id);
+      return toMcpResult(result);
+    }, "Failed: quality_deleteBallooningDiagram"),
   );
 };
