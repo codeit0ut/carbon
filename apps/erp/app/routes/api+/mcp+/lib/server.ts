@@ -10,7 +10,6 @@ import {
   registerInvoicingTools,
   registerItemsTools,
   registerPeopleTools,
-  registerPricingTools,
   registerProductionTools,
   registerPurchasingTools,
   registerQualityTools,
@@ -76,7 +75,6 @@ export function createMcpServer(ctx: McpContext): McpServer {
   registerInvoicingTools(server, ctx);
   registerItemsTools(server, ctx);
   registerPeopleTools(server, ctx);
-  registerPricingTools(server, ctx);
   registerProductionTools(server, ctx);
   registerPurchasingTools(server, ctx);
   registerQualityTools(server, ctx);
