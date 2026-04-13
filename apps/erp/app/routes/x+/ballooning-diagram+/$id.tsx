@@ -50,23 +50,12 @@ export default function BallooningDetailRoute() {
   const content = diagram.content as BallooningDiagramContent | null;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b px-4 py-3">
-        <h1 className="text-lg font-semibold">{diagram.name}</h1>
-        {content?.drawingNumber && (
-          <p className="text-sm text-muted-foreground">
-            Drawing {content.drawingNumber}
-            {content.revision ? ` Rev ${content.revision}` : ""}
-          </p>
-        )}
-      </div>
-      <div className="flex-1 overflow-auto">
-        <BalloonDiagramEditor
-          diagramId={diagram.id}
-          name={diagram.name}
-          content={content}
-        />
-      </div>
+    <div className="flex flex-col h-[calc(100dvh-49px)] overflow-hidden w-full">
+      <BalloonDiagramEditor
+        diagramId={diagram.id}
+        name={diagram.name}
+        content={content}
+      />
     </div>
   );
 }

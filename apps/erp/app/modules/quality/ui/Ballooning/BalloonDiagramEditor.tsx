@@ -2,6 +2,7 @@ import { useCarbon } from "@carbon/auth";
 import {
   Badge,
   Button,
+  Heading,
   HStack,
   Input,
   Select,
@@ -49,6 +50,13 @@ type DragState = {
   currentY: number;
 } | null;
 
+type MovingBalloon = {
+  id: string;
+  // offset from balloon position (%) to mouse position (%) at drag start
+  offsetX: number;
+  offsetY: number;
+} | null;
+
 type BalloonDiagramEditorProps = {
   diagramId: string;
   name: string;
@@ -90,6 +98,7 @@ export default function BalloonDiagramEditor({
   const [numPages, setNumPages] = useState<number>(0);
   const [isMounted, setIsMounted] = useState(false);
   const [drag, setDrag] = useState<DragState>(null);
+  const [movingBalloon, setMovingBalloon] = useState<MovingBalloon>(null);
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -134,25 +143,54 @@ export default function BalloonDiagramEditor({
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!placing) return;
+      if (!placing || movingBalloon) return;
       e.preventDefault();
       const { x, y } = getRelativePos(e);
       setDrag({ startX: x, startY: y, currentX: x, currentY: y });
     },
-    [placing, getRelativePos]
+    [placing, movingBalloon, getRelativePos]
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      if (movingBalloon) {
+        const { x, y } = getRelativePos(e);
+        const newX = x - movingBalloon.offsetX;
+        const newY = y - movingBalloon.offsetY;
+        setAnnotations((prev) =>
+          prev.map((a) => {
+            if (a.id !== movingBalloon.id) return a;
+            const dx = newX - a.x;
+            const dy = newY - a.y;
+            return {
+              ...a,
+              x: newX,
+              y: newY,
+              rect: a.rect
+                ? {
+                    ...a.rect,
+                    x: a.rect.x + dx,
+                    y: a.rect.y + dy
+                  }
+                : a.rect
+            };
+          })
+        );
+        return;
+      }
       if (!drag) return;
       const { x, y } = getRelativePos(e);
       setDrag((d) => (d ? { ...d, currentX: x, currentY: y } : null));
     },
-    [drag, getRelativePos]
+    [drag, movingBalloon, getRelativePos]
   );
 
   const handleMouseUp = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      if (movingBalloon) {
+        setMovingBalloon(null);
+        return;
+      }
       if (!drag || !placing) return;
       const { x, y } = getRelativePos(e);
 
@@ -197,7 +235,7 @@ export default function BalloonDiagramEditor({
       setDrag(null);
       setPlacing(false);
     },
-    [drag, placing, getRelativePos, nextBalloonNumber]
+    [drag, placing, movingBalloon, getRelativePos, nextBalloonNumber]
   );
 
   const removeAnnotation = useCallback((id: string) => {
@@ -270,7 +308,7 @@ export default function BalloonDiagramEditor({
   );
 
   return (
-    <VStack spacing={4} className="h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -281,328 +319,359 @@ export default function BalloonDiagramEditor({
         disabled={uploading}
       />
 
-      {/* Toolbar */}
-      <HStack className="px-4 pt-4 justify-between">
+      {/* Header bar */}
+      <div className="flex flex-shrink-0 items-center justify-between px-4 py-2 bg-card border-b border-border h-[50px] overflow-x-auto scrollbar-hide dark:border-none dark:shadow-[inset_0_0_1px_rgb(255_255_255_/_0.24),_0_0_0_0.5px_rgb(0,0,0,1),0px_0px_4px_rgba(0,_0,_0,_0.08)]">
+        <VStack spacing={0}>
+          <HStack>
+            <Heading size="h4" className="flex items-center gap-2">
+              <span>{name}</span>
+              {content?.drawingNumber && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  {content.drawingNumber}
+                  {content.revision ? ` Rev ${content.revision}` : ""}
+                </span>
+              )}
+            </Heading>
+          </HStack>
+        </VStack>
         <HStack>
           <Button
-            variant={placing ? "primary" : "outline"}
+            variant={placing ? "primary" : "secondary"}
+            leftIcon={<LuRectangleHorizontal />}
             onClick={() => setPlacing((v) => !v)}
-            disabled={!hasPdf}
+            isDisabled={!hasPdf}
           >
-            <LuRectangleHorizontal className="mr-2 h-4 w-4" />
             {placing ? t`Drag to highlight a feature` : t`Add Balloon`}
           </Button>
-        </HStack>
-
-        <HStack>
           {hasPdf && (
             <Button
-              variant="outline"
+              variant="secondary"
+              leftIcon={<LuUpload />}
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
+              isDisabled={uploading}
             >
-              <LuUpload className="mr-2 h-4 w-4" />
               {uploading ? t`Uploading…` : t`Replace PDF`}
             </Button>
           )}
-          <Button onClick={handleSave} disabled={fetcher.state !== "idle"}>
-            <LuSave className="mr-2 h-4 w-4" />
+          <Button
+            leftIcon={<LuSave />}
+            onClick={handleSave}
+            isDisabled={fetcher.state !== "idle"}
+          >
             {t`Save`}
           </Button>
         </HStack>
-      </HStack>
-
-      {/* PDF viewer — outer measures width, inner fills container */}
-      <div
-        ref={containerRef}
-        className="mx-4 border rounded-lg bg-muted flex-shrink-0 overflow-auto"
-        style={{
-          height: 640,
-          cursor: placing ? "crosshair" : "default",
-          minWidth: "calc(100% - 2rem)"
-        }}
-      >
-        {hasPdf ? (
-          <div
-            ref={overlayRef}
-            className="relative select-none"
-            style={{ width: containerWidth > 0 ? containerWidth : "100%" }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={() => {
-              if (drag) setDrag(null);
-            }}
-          >
-            {isMounted && (
-              <Document
-                file={pdfFile ?? pdfUrl}
-                onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                onLoadError={(err) => toast.error(`PDF error: ${err.message}`)}
-              >
-                {Array.from({ length: numPages }, (_, i) => (
-                  <Page
-                    key={i + 1}
-                    pageNumber={i + 1}
-                    width={containerWidth > 0 ? containerWidth : undefined}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                    className="w-full"
-                  />
-                ))}
-              </Document>
-            )}
-
-            {/* Saved highlights */}
-            {annotations.map((ann) => (
-              <div
-                key={`rect-${ann.id}`}
-                className="absolute border-2 rounded-sm pointer-events-none"
-                style={{
-                  left: `${ann.rect!.x}%`,
-                  top: `${ann.rect!.y}%`,
-                  width: `${ann.rect!.width}%`,
-                  height: `${ann.rect!.height}%`,
-                  borderColor:
-                    ann.id === selectedBalloon
-                      ? "hsl(var(--primary))"
-                      : "hsl(var(--primary) / 0.6)",
-                  backgroundColor:
-                    ann.id === selectedBalloon
-                      ? "hsl(var(--primary) / 0.15)"
-                      : "hsl(var(--primary) / 0.07)",
-                  zIndex: 8
-                }}
-              />
-            ))}
-
-            {/* Live drag preview */}
-            {previewRect && (
-              <div
-                className="absolute border-2 rounded-sm pointer-events-none"
-                style={{
-                  left: `${previewRect.x}%`,
-                  top: `${previewRect.y}%`,
-                  width: `${previewRect.width}%`,
-                  height: `${previewRect.height}%`,
-                  borderColor: "hsl(var(--primary))",
-                  backgroundColor: "hsl(var(--primary) / 0.12)",
-                  zIndex: 9
-                }}
-              />
-            )}
-
-            {/* Balloon number pins */}
-            {annotations.map((ann) => (
-              <button
-                key={`pin-${ann.id}`}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedBalloon(
-                    ann.id === selectedBalloon ? null : ann.id
-                  );
-                }}
-                className="absolute flex items-center justify-center rounded-full border-2 text-xs font-bold transition-colors"
-                style={{
-                  left: `${ann.x}%`,
-                  top: `${ann.y}%`,
-                  width: BALLOON_RADIUS * 2,
-                  height: BALLOON_RADIUS * 2,
-                  transform: "translate(-50%, -50%)",
-                  backgroundColor:
-                    ann.id === selectedBalloon
-                      ? "hsl(var(--primary))"
-                      : "white",
-                  borderColor: "hsl(var(--primary))",
-                  color:
-                    ann.id === selectedBalloon
-                      ? "white"
-                      : "hsl(var(--primary))",
-                  zIndex: 10
-                }}
-              >
-                {ann.balloonNumber}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center min-w-full h-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
-          >
-            <VStack className="items-center gap-2">
-              {uploading ? (
-                <LuLoader className="h-12 w-12 opacity-30 animate-spin" />
-              ) : (
-                <LuUpload className="h-12 w-12 opacity-30" />
-              )}
-              <p>
-                {uploading ? t`Uploading…` : t`Click to upload a PDF drawing`}
-              </p>
-            </VStack>
-          </button>
-        )}
       </div>
 
-      {/* Feature table */}
-      <div className="mb-4 flex-1 overflow-auto">
-        <Table>
-          <Thead>
-            <Tr>
-              <Th className="w-16">{t`#`}</Th>
-              <Th>{t`Description`}</Th>
-              <Th className="w-28">{t`Nominal`}</Th>
-              <Th className="w-24">{t`+Tol`}</Th>
-              <Th className="w-24">{t`-Tol`}</Th>
-              <Th className="w-24">{t`Unit`}</Th>
-              <Th className="w-32">{t`Characteristic`}</Th>
-              <Th className="w-10" />
-            </Tr>
-          </Thead>
-          <Tbody>
-            {sortedFeatures.map((feature) => (
-              <Tr
-                key={feature.id}
-                onClick={() =>
-                  setSelectedBalloon(
-                    feature.id === selectedBalloon ? null : feature.id
-                  )
-                }
-                className={`cursor-pointer ${selectedBalloon === feature.id ? "bg-primary/10" : ""}`}
-              >
-                <Td>
-                  <Badge variant="outline">{feature.balloonNumber}</Badge>
-                </Td>
-                <Td>
-                  <Input
-                    name={`description-${feature.id}`}
-                    value={feature.description}
-                    onChange={(e) =>
-                      updateFeature(feature.id, "description", e.target.value)
-                    }
-                    placeholder={t`Feature description`}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </Td>
-                <Td>
-                  <Input
-                    key={`nominal-${feature.id}`}
-                    name={`nominal-${feature.id}`}
-                    inputMode="decimal"
-                    defaultValue={feature.nominalValue ?? ""}
-                    onBlur={(e) =>
-                      updateFeature(
-                        feature.id,
-                        "nominalValue",
-                        e.target.value === "" ? null : Number(e.target.value)
-                      )
-                    }
-                    placeholder="0.000"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </Td>
-                <Td>
-                  <Input
-                    key={`tolPlus-${feature.id}`}
-                    name={`tolPlus-${feature.id}`}
-                    inputMode="decimal"
-                    defaultValue={feature.tolerancePlus ?? ""}
-                    onBlur={(e) =>
-                      updateFeature(
-                        feature.id,
-                        "tolerancePlus",
-                        e.target.value === "" ? null : Number(e.target.value)
-                      )
-                    }
-                    placeholder="+0.005"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </Td>
-                <Td>
-                  <Input
-                    key={`tolMinus-${feature.id}`}
-                    name={`tolMinus-${feature.id}`}
-                    inputMode="decimal"
-                    defaultValue={feature.toleranceMinus ?? ""}
-                    onBlur={(e) =>
-                      updateFeature(
-                        feature.id,
-                        "toleranceMinus",
-                        e.target.value === "" ? null : Number(e.target.value)
-                      )
-                    }
-                    placeholder="-0.005"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </Td>
-                <Td>
-                  <Input
-                    name={`unit-${feature.id}`}
-                    value={feature.unitOfMeasureCode ?? ""}
-                    onChange={(e) =>
-                      updateFeature(
-                        feature.id,
-                        "unitOfMeasureCode",
-                        e.target.value || null
-                      )
-                    }
-                    placeholder="mm"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </Td>
-                <Td onClick={(e) => e.stopPropagation()}>
-                  <Select
-                    value={feature.characteristicType ?? ""}
-                    onValueChange={(val) =>
-                      updateFeature(
-                        feature.id,
-                        "characteristicType",
-                        val || null
-                      )
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t`Type`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {balloonCharacteristicType.map((ct) => (
-                        <SelectItem key={ct} value={ct}>
-                          {ct}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Td>
-                <Td>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeAnnotation(feature.id);
-                    }}
-                  >
-                    <LuTrash className="h-4 w-4 text-destructive" />
-                  </Button>
-                </Td>
-              </Tr>
-            ))}
-            {sortedFeatures.length === 0 && (
-              <Tr>
-                <Td
-                  colSpan={8}
-                  className="text-center text-muted-foreground py-8"
+      <div className="flex flex-col flex-1 overflow-hidden p-4 gap-4">
+        {/* PDF viewer — outer measures width, inner fills container */}
+        <div
+          ref={containerRef}
+          className="border rounded-lg bg-muted flex-shrink-0 overflow-auto"
+          style={{
+            height: 540,
+            cursor: placing ? "crosshair" : movingBalloon ? "move" : "default",
+            minWidth: "100%"
+          }}
+        >
+          {hasPdf ? (
+            <div
+              ref={overlayRef}
+              className="relative select-none"
+              style={{ width: containerWidth > 0 ? containerWidth : "100%" }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={() => {
+                if (drag) setDrag(null);
+                if (movingBalloon) setMovingBalloon(null);
+              }}
+            >
+              {isMounted && (
+                <Document
+                  file={pdfFile ?? pdfUrl}
+                  onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                  onLoadError={(err) =>
+                    toast.error(`PDF error: ${err.message}`)
+                  }
                 >
-                  {t`No balloons yet. Click "Add Balloon" then drag to highlight a feature on the drawing.`}
-                </Td>
+                  {Array.from({ length: numPages }, (_, i) => (
+                    <Page
+                      key={i + 1}
+                      pageNumber={i + 1}
+                      width={containerWidth > 0 ? containerWidth : undefined}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                      className="w-full"
+                    />
+                  ))}
+                </Document>
+              )}
+
+              {/* Saved highlights */}
+              {annotations.map((ann) => (
+                <div
+                  key={`rect-${ann.id}`}
+                  className="absolute border-2 rounded-sm pointer-events-none"
+                  style={{
+                    left: `${ann.rect!.x}%`,
+                    top: `${ann.rect!.y}%`,
+                    width: `${ann.rect!.width}%`,
+                    height: `${ann.rect!.height}%`,
+                    borderColor:
+                      ann.id === selectedBalloon
+                        ? "hsl(var(--primary))"
+                        : "hsl(var(--primary) / 0.6)",
+                    backgroundColor:
+                      ann.id === selectedBalloon
+                        ? "hsl(var(--primary) / 0.15)"
+                        : "hsl(var(--primary) / 0.07)",
+                    zIndex: 8
+                  }}
+                />
+              ))}
+
+              {/* Live drag preview */}
+              {previewRect && (
+                <div
+                  className="absolute border-2 rounded-sm pointer-events-none"
+                  style={{
+                    left: `${previewRect.x}%`,
+                    top: `${previewRect.y}%`,
+                    width: `${previewRect.width}%`,
+                    height: `${previewRect.height}%`,
+                    borderColor: "hsl(var(--primary))",
+                    backgroundColor: "hsl(var(--primary) / 0.12)",
+                    zIndex: 9
+                  }}
+                />
+              )}
+
+              {/* Balloon number pins */}
+              {annotations.map((ann) => (
+                <button
+                  key={`pin-${ann.id}`}
+                  type="button"
+                  onMouseDown={(e) => {
+                    if (placing) return;
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setSelectedBalloon(ann.id);
+                    if (!overlayRef.current) return;
+                    const rect = overlayRef.current.getBoundingClientRect();
+                    const mouseX = toPercent(e.clientX - rect.left, rect.width);
+                    const mouseY = toPercent(e.clientY - rect.top, rect.height);
+                    setMovingBalloon({
+                      id: ann.id,
+                      offsetX: mouseX - ann.x,
+                      offsetY: mouseY - ann.y
+                    });
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="absolute flex items-center justify-center rounded-full border-2 text-xs font-bold transition-colors"
+                  style={{
+                    left: `${ann.x}%`,
+                    top: `${ann.y}%`,
+                    width: BALLOON_RADIUS * 2,
+                    height: BALLOON_RADIUS * 2,
+                    transform: "translate(-50%, -50%)",
+                    cursor: placing ? "crosshair" : "move",
+                    backgroundColor:
+                      ann.id === selectedBalloon
+                        ? "hsl(var(--primary))"
+                        : "white",
+                    borderColor: "hsl(var(--primary))",
+                    color:
+                      ann.id === selectedBalloon
+                        ? "white"
+                        : "hsl(var(--primary))",
+                    zIndex: 10
+                  }}
+                >
+                  {ann.balloonNumber}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center justify-center min-w-full h-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+            >
+              <VStack className="items-center gap-2">
+                {uploading ? (
+                  <LuLoader className="h-12 w-12 opacity-30 animate-spin" />
+                ) : (
+                  <LuUpload className="h-12 w-12 opacity-30" />
+                )}
+                <p>
+                  {uploading ? t`Uploading…` : t`Click to upload a PDF drawing`}
+                </p>
+              </VStack>
+            </button>
+          )}
+        </div>
+
+        {/* Feature table */}
+        <div className="flex-1 overflow-auto border rounded-lg">
+          <Table>
+            <Thead>
+              <Tr>
+                <Th className="w-16">{t`#`}</Th>
+                <Th>{t`Description`}</Th>
+                <Th className="w-28">{t`Nominal`}</Th>
+                <Th className="w-24">{t`+Tol`}</Th>
+                <Th className="w-24">{t`-Tol`}</Th>
+                <Th className="w-24">{t`Unit`}</Th>
+                <Th className="w-32">{t`Characteristic`}</Th>
+                <Th className="w-10" />
               </Tr>
-            )}
-          </Tbody>
-        </Table>
+            </Thead>
+            <Tbody>
+              {sortedFeatures.map((feature) => (
+                <Tr
+                  key={feature.id}
+                  onClick={() =>
+                    setSelectedBalloon(
+                      feature.id === selectedBalloon ? null : feature.id
+                    )
+                  }
+                  className={`cursor-pointer ${selectedBalloon === feature.id ? "bg-primary/10" : ""}`}
+                >
+                  <Td>
+                    <Badge variant="outline">{feature.balloonNumber}</Badge>
+                  </Td>
+                  <Td>
+                    <Input
+                      name={`description-${feature.id}`}
+                      value={feature.description}
+                      onChange={(e) =>
+                        updateFeature(feature.id, "description", e.target.value)
+                      }
+                      placeholder={t`Feature description`}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Td>
+                  <Td>
+                    <Input
+                      key={`nominal-${feature.id}`}
+                      name={`nominal-${feature.id}`}
+                      inputMode="decimal"
+                      defaultValue={feature.nominalValue ?? ""}
+                      onBlur={(e) =>
+                        updateFeature(
+                          feature.id,
+                          "nominalValue",
+                          e.target.value === "" ? null : Number(e.target.value)
+                        )
+                      }
+                      placeholder="0.000"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Td>
+                  <Td>
+                    <Input
+                      key={`tolPlus-${feature.id}`}
+                      name={`tolPlus-${feature.id}`}
+                      inputMode="decimal"
+                      defaultValue={feature.tolerancePlus ?? ""}
+                      onBlur={(e) =>
+                        updateFeature(
+                          feature.id,
+                          "tolerancePlus",
+                          e.target.value === "" ? null : Number(e.target.value)
+                        )
+                      }
+                      placeholder="+0.005"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Td>
+                  <Td>
+                    <Input
+                      key={`tolMinus-${feature.id}`}
+                      name={`tolMinus-${feature.id}`}
+                      inputMode="decimal"
+                      defaultValue={feature.toleranceMinus ?? ""}
+                      onBlur={(e) =>
+                        updateFeature(
+                          feature.id,
+                          "toleranceMinus",
+                          e.target.value === "" ? null : Number(e.target.value)
+                        )
+                      }
+                      placeholder="-0.005"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Td>
+                  <Td>
+                    <Input
+                      name={`unit-${feature.id}`}
+                      value={feature.unitOfMeasureCode ?? ""}
+                      onChange={(e) =>
+                        updateFeature(
+                          feature.id,
+                          "unitOfMeasureCode",
+                          e.target.value || null
+                        )
+                      }
+                      placeholder="mm"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Td>
+                  <Td onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      value={feature.characteristicType ?? ""}
+                      onValueChange={(val) =>
+                        updateFeature(
+                          feature.id,
+                          "characteristicType",
+                          val || null
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t`Type`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {balloonCharacteristicType.map((ct) => (
+                          <SelectItem key={ct} value={ct}>
+                            {ct}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Td>
+                  <Td>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeAnnotation(feature.id);
+                      }}
+                    >
+                      <LuTrash className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </Td>
+                </Tr>
+              ))}
+              {sortedFeatures.length === 0 && (
+                <Tr>
+                  <Td
+                    colSpan={8}
+                    className="text-center text-muted-foreground py-8"
+                  >
+                    {t`No balloons yet. Click "Add Balloon" then drag to highlight a feature on the drawing.`}
+                  </Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+        </div>
       </div>
-    </VStack>
+    </div>
   );
 }
