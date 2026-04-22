@@ -181,7 +181,7 @@ function drawMarkupOnPageCanvas(
 /**
  * Rasterizes each PDF page with selector + balloon markup (matching the Konva overlay) and builds a new PDF.
  */
-export async function buildBallooningPdfWithOverlaysBytes(args: {
+export async function buildBalloonDocumentPdfWithOverlaysBytes(args: {
   pdfBytes: ArrayBuffer;
   featureRows: ExportFeatureRow[];
   selectorRects: ExportSelectorRect[];

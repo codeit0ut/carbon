@@ -78,19 +78,23 @@ import {
   upsertQualityDocument,
   upsertQualityDocumentStep,
   upsertRisk,
-  getBallooningDiagrams,
-  getBallooningDiagram,
-  upsertBallooningDiagram,
-  deleteBallooningDiagram,
-  getBallooningSelectors,
-  createBallooningSelectors,
-  updateBallooningSelectors,
-  deleteBallooningSelectors,
-  getBallooningBalloons,
-  createBalloonsForSelectors,
-  createBallooningBalloonsFromPayload,
-  updateBallooningBalloons,
-  deleteBallooningBalloons,
+  getBalloonDocuments,
+  getBalloonDocument,
+  upsertBalloonDocument,
+  deleteBalloonDocument,
+  getBalloonAnchors,
+  createBalloonAnchors,
+  updateBalloonAnchors,
+  deleteBalloonAnchors,
+  getBalloons,
+  createBalloonsForAnchors,
+  createBalloonsFromPayload,
+  updateBalloons,
+  deleteBalloons,
+  getBalloonAnnotations,
+  createBalloonAnnotations,
+  updateBalloonAnnotations,
+  deleteBalloonAnnotations,
 } from "~/modules/quality/quality.service";
 import {
   nonConformanceReviewerValidator,
@@ -103,7 +107,16 @@ import {
   qualityDocumentValidator,
   qualityDocumentStepValidator,
   riskRegisterValidator,
-  ballooningDiagramValidator,
+  balloonDocumentValidator,
+  balloonAnchorCreateItemValidator,
+  balloonAnchorUpdateItemValidator,
+  balloonAnchorDeleteValidator,
+  balloonCreateFromPayloadItemValidator,
+  balloonUpdateItemValidator,
+  balloonDeleteValidator,
+  balloonAnnotationCreateItemValidator,
+  balloonAnnotationUpdateItemValidator,
+  balloonAnnotationDeleteValidator,
 } from "~/modules/quality/quality.models";
 
 export const registerQualityTools: RegisterTools = (server, ctx) => {
@@ -1184,9 +1197,9 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
   );
 
   server.registerTool(
-    "quality_getBallooningDiagrams",
+    "quality_getBalloonDocuments",
     {
-      description: "get ballooning diagrams",
+      description: "get balloon documents",
       inputSchema: {
       args: z.object({
     limit: z.number().int().default(100),
@@ -1196,155 +1209,135 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBallooningDiagrams(ctx.client, ctx.companyId, params.args);
+      const result = await getBalloonDocuments(ctx.client, ctx.companyId, params.args);
       return toMcpResult(result);
-    }, "Failed: quality_getBallooningDiagrams"),
+    }, "Failed: quality_getBalloonDocuments"),
   );
 
   server.registerTool(
-    "quality_getBallooningDiagram",
+    "quality_getBalloonDocument",
     {
-      description: "get ballooning diagram",
+      description: "get balloon document",
       inputSchema: {
       id: z.string(),
     },
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBallooningDiagram(ctx.client, params.id);
+      const result = await getBalloonDocument(ctx.client, params.id);
       return toMcpResult(result);
-    }, "Failed: quality_getBallooningDiagram"),
+    }, "Failed: quality_getBalloonDocument"),
   );
 
   server.registerTool(
-    "quality_upsertBallooningDiagram",
+    "quality_upsertBalloonDocument",
     {
-      description: "upsert ballooning diagram",
+      description: "upsert balloon document",
       inputSchema: {
-      diagram: ballooningDiagramValidator,
+      diagram: balloonDocumentValidator,
     },
       annotations: WRITE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await upsertBallooningDiagram(ctx.client, { ...params.diagram, companyId: ctx.companyId, createdBy: ctx.userId, updatedBy: ctx.userId });
+      const result = await upsertBalloonDocument(ctx.client, { ...params.diagram, companyId: ctx.companyId, createdBy: ctx.userId, updatedBy: ctx.userId });
       return toMcpResult(result);
-    }, "Failed: quality_upsertBallooningDiagram"),
+    }, "Failed: quality_upsertBalloonDocument"),
   );
 
   server.registerTool(
-    "quality_deleteBallooningDiagram",
+    "quality_deleteBalloonDocument",
     {
-      description: "delete ballooning diagram",
+      description: "delete balloon document",
       inputSchema: {
       id: z.string(),
     },
       annotations: DESTRUCTIVE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await deleteBallooningDiagram(ctx.client, params.id);
+      const result = await deleteBalloonDocument(ctx.client, params.id);
       return toMcpResult(result);
-    }, "Failed: quality_deleteBallooningDiagram"),
+    }, "Failed: quality_deleteBalloonDocument"),
   );
 
   server.registerTool(
-    "quality_getBallooningSelectors",
+    "quality_getBalloonAnchors",
     {
-      description: "get ballooning selectors",
+      description: "get balloon anchors",
       inputSchema: {
       drawingId: z.string(),
     },
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBallooningSelectors(ctx.client, params.drawingId);
+      const result = await getBalloonAnchors(ctx.client, params.drawingId);
       return toMcpResult(result);
-    }, "Failed: quality_getBallooningSelectors"),
+    }, "Failed: quality_getBalloonAnchors"),
   );
 
   server.registerTool(
-    "quality_createBallooningSelectors",
+    "quality_createBalloonAnchors",
     {
-      description: "create ballooning selectors",
+      description: "create balloon anchors",
       inputSchema: {
-      args: z.object({
-    drawingId: z.string(),
-    selectors: z.any(),
-    pageNumber: z.number(),
-    xCoordinate: z.number(),
-    yCoordinate: z.number(),
-    width: z.number(),
-    height: z.number()
-  }),
+      args: balloonAnchorCreateItemValidator,
     },
       annotations: WRITE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await createBallooningSelectors(ctx.client, { ...params.args, companyId: ctx.companyId, createdBy: ctx.userId });
+      const result = await createBalloonAnchors(ctx.client, { ...params.args, companyId: ctx.companyId, createdBy: ctx.userId });
       return toMcpResult(result);
-    }, "Failed: quality_createBallooningSelectors"),
+    }, "Failed: quality_createBalloonAnchors"),
   );
 
   server.registerTool(
-    "quality_updateBallooningSelectors",
+    "quality_updateBalloonAnchors",
     {
-      description: "update ballooning selectors",
+      description: "update balloon anchors",
       inputSchema: {
-      args: z.object({
-    drawingId: z.string(),
-    selectors: z.any(),
-    id: z.string(),
-    pageNumber: z.number().optional(),
-    xCoordinate: z.number().optional(),
-    yCoordinate: z.number().optional(),
-    width: z.number().optional(),
-    height: z.number().optional()
-  }),
+      args: balloonAnchorUpdateItemValidator,
     },
       annotations: WRITE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await updateBallooningSelectors(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
+      const result = await updateBalloonAnchors(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
       return toMcpResult(result);
-    }, "Failed: quality_updateBallooningSelectors"),
+    }, "Failed: quality_updateBalloonAnchors"),
   );
 
   server.registerTool(
-    "quality_deleteBallooningSelectors",
+    "quality_deleteBalloonAnchors",
     {
-      description: "delete ballooning selectors",
+      description: "delete balloon anchors",
       inputSchema: {
-      args: z.object({
-    drawingId: z.string(),
-    ids: z.array(z.string())
-  }),
+      args: balloonAnchorDeleteValidator,
     },
       annotations: DESTRUCTIVE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await deleteBallooningSelectors(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
+      const result = await deleteBalloonAnchors(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
       return toMcpResult(result);
-    }, "Failed: quality_deleteBallooningSelectors"),
+    }, "Failed: quality_deleteBalloonAnchors"),
   );
 
   server.registerTool(
-    "quality_getBallooningBalloons",
+    "quality_getBalloons",
     {
-      description: "get ballooning balloons",
+      description: "get balloons",
       inputSchema: {
       drawingId: z.string(),
     },
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBallooningBalloons(ctx.client, params.drawingId);
+      const result = await getBalloons(ctx.client, params.drawingId);
       return toMcpResult(result);
-    }, "Failed: quality_getBallooningBalloons"),
+    }, "Failed: quality_getBalloons"),
   );
 
   server.registerTool(
-    "quality_createBalloonsForSelectors",
+    "quality_createBalloonsForAnchors",
     {
-      description: "create balloons for selectors",
+      description: "create balloons for anchors",
       inputSchema: {
       args: z.object({
     drawingId: z.string(),
@@ -1360,79 +1353,113 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
       annotations: WRITE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await createBalloonsForSelectors(ctx.client, { ...params.args, companyId: ctx.companyId, createdBy: ctx.userId });
+      const result = await createBalloonsForAnchors(ctx.client, { ...params.args, companyId: ctx.companyId, createdBy: ctx.userId });
       return toMcpResult(result);
-    }, "Failed: quality_createBalloonsForSelectors"),
+    }, "Failed: quality_createBalloonsForAnchors"),
   );
 
   server.registerTool(
-    "quality_createBallooningBalloonsFromPayload",
+    "quality_createBalloonsFromPayload",
     {
-      description: "create ballooning balloons from payload",
+      description: "create balloons from payload",
       inputSchema: {
-      args: z.object({
-    drawingId: z.string(),
-    selectorIdMap: z.any(),
-    balloons: z.any(),
-    tempSelectorId: z.string(),
-    label: z.string(),
-    xCoordinate: z.number(),
-    yCoordinate: z.number(),
-    anchorX: z.number(),
-    anchorY: z.number(),
-    data: z.any(),
-    description: z.string().nullable().optional()
-  }),
+      args: balloonCreateFromPayloadItemValidator,
     },
       annotations: WRITE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await createBallooningBalloonsFromPayload(ctx.client, { ...params.args, companyId: ctx.companyId, createdBy: ctx.userId });
+      const result = await createBalloonsFromPayload(ctx.client, { ...params.args, companyId: ctx.companyId, createdBy: ctx.userId });
       return toMcpResult(result);
-    }, "Failed: quality_createBallooningBalloonsFromPayload"),
+    }, "Failed: quality_createBalloonsFromPayload"),
   );
 
   server.registerTool(
-    "quality_updateBallooningBalloons",
+    "quality_updateBalloons",
     {
-      description: "update ballooning balloons",
+      description: "update balloons",
       inputSchema: {
-      args: z.object({
-    drawingId: z.string(),
-    balloons: z.any(),
-    id: z.string(),
-    label: z.string().optional(),
-    xCoordinate: z.number().optional(),
-    yCoordinate: z.number().optional(),
-    anchorX: z.number().optional(),
-    anchorY: z.number().optional(),
-    data: z.any().optional(),
-    description: z.string().nullable().optional()
-  }),
+      args: balloonUpdateItemValidator,
     },
       annotations: WRITE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await updateBallooningBalloons(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
+      const result = await updateBalloons(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
       return toMcpResult(result);
-    }, "Failed: quality_updateBallooningBalloons"),
+    }, "Failed: quality_updateBalloons"),
   );
 
   server.registerTool(
-    "quality_deleteBallooningBalloons",
+    "quality_deleteBalloons",
     {
-      description: "delete ballooning balloons",
+      description: "delete balloons",
       inputSchema: {
-      args: z.object({
-    drawingId: z.string(),
-    ids: z.array(z.string())
-  }),
+      args: balloonDeleteValidator,
     },
       annotations: DESTRUCTIVE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await deleteBallooningBalloons(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
+      const result = await deleteBalloons(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
       return toMcpResult(result);
-    }, "Failed: quality_deleteBallooningBalloons"),
+    }, "Failed: quality_deleteBalloons"),
+  );
+
+  server.registerTool(
+    "quality_getBalloonAnnotations",
+    {
+      description: "get balloon annotations",
+      inputSchema: {
+      drawingId: z.string(),
+    },
+      annotations: READ_ONLY_ANNOTATIONS,
+    },
+    withErrorHandling(async (params) => {
+      const result = await getBalloonAnnotations(ctx.client, params.drawingId);
+      return toMcpResult(result);
+    }, "Failed: quality_getBalloonAnnotations"),
+  );
+
+  server.registerTool(
+    "quality_createBalloonAnnotations",
+    {
+      description: "create balloon annotations",
+      inputSchema: {
+      args: balloonAnnotationCreateItemValidator,
+    },
+      annotations: WRITE_ANNOTATIONS,
+    },
+    withErrorHandling(async (params) => {
+      const result = await createBalloonAnnotations(ctx.client, { ...params.args, companyId: ctx.companyId, createdBy: ctx.userId });
+      return toMcpResult(result);
+    }, "Failed: quality_createBalloonAnnotations"),
+  );
+
+  server.registerTool(
+    "quality_updateBalloonAnnotations",
+    {
+      description: "update balloon annotations",
+      inputSchema: {
+      args: balloonAnnotationUpdateItemValidator,
+    },
+      annotations: WRITE_ANNOTATIONS,
+    },
+    withErrorHandling(async (params) => {
+      const result = await updateBalloonAnnotations(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
+      return toMcpResult(result);
+    }, "Failed: quality_updateBalloonAnnotations"),
+  );
+
+  server.registerTool(
+    "quality_deleteBalloonAnnotations",
+    {
+      description: "delete balloon annotations",
+      inputSchema: {
+      args: balloonAnnotationDeleteValidator,
+    },
+      annotations: DESTRUCTIVE_ANNOTATIONS,
+    },
+    withErrorHandling(async (params) => {
+      const result = await deleteBalloonAnnotations(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
+      return toMcpResult(result);
+    }, "Failed: quality_deleteBalloonAnnotations"),
   );
 };

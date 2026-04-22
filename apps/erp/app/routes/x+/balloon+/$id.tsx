@@ -8,22 +8,32 @@ import { lazy, Suspense } from "react";
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect, useLoaderData } from "react-router";
 import {
-  getBallooningBalloons,
-  getBallooningDiagram,
-  getBallooningSelectors
+  getBalloonAnchors,
+  getBalloonDocument,
+  getBalloons
 } from "~/modules/quality";
-import type { BallooningDiagramContent } from "~/modules/quality/types";
+import type { BalloonDocumentContent } from "~/modules/quality/types";
 import type { Handle } from "~/utils/handle";
 import { path } from "~/utils/path";
 
-/** Konva must not load on the server (it requires native `canvas`). */
-const BalloonDiagramEditor = lazy(
-  () => import("~/modules/quality/ui/Ballooning/BalloonDiagramEditor")
+const BalloonDocumentEditor = lazy(
+  () => import("~/modules/quality/ui/BalloonDocument/BalloonDocumentEditor")
 );
 
 export const handle: Handle = {
-  breadcrumb: msg`Ballooning Diagrams`,
-  to: path.to.ballooningDiagrams,
+  breadcrumb: (
+    _params: unknown,
+    data?: {
+      diagram?: {
+        name?: string | null;
+        content?: { drawingNumber?: string | null } | null;
+      };
+    }
+  ) =>
+    data?.diagram?.name ??
+    data?.diagram?.content?.drawingNumber ??
+    msg`Balloon Document`,
+  to: path.to.balloonDocuments,
   module: "quality"
 };
 
@@ -37,23 +47,27 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   const serviceRole = await getCarbonServiceRole();
   const [diagram, selectors, balloons] = await Promise.all([
-    getBallooningDiagram(serviceRole, id),
-    getBallooningSelectors(serviceRole, id),
-    getBallooningBalloons(serviceRole, id)
+    getBalloonDocument(serviceRole, id),
+    getBalloonAnchors(serviceRole, id),
+    getBalloons(serviceRole, id)
   ]);
 
   if (diagram.error) {
     throw redirect(
-      path.to.ballooningDiagrams,
+      path.to.balloonDocuments,
       await flash(
         request,
-        error(diagram.error, "Failed to load ballooning diagram")
+        error(diagram.error, "Failed to load balloon document")
       )
     );
   }
 
+  if (!diagram.data) {
+    throw redirect(path.to.balloonDocuments);
+  }
+
   if (diagram.data.companyId !== companyId) {
-    throw redirect(path.to.ballooningDiagrams);
+    throw redirect(path.to.balloonDocuments);
   }
 
   return {
@@ -63,9 +77,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   };
 }
 
-export default function BallooningDetailRoute() {
+export default function BalloonDetailRoute() {
   const { diagram, selectors, balloons } = useLoaderData<typeof loader>();
-  const content = diagram.content as BallooningDiagramContent | null;
+  const content = diagram.content as BalloonDocumentContent | null;
 
   return (
     <div className="flex flex-col h-[calc(100dvh-49px)] overflow-hidden w-full">
@@ -84,7 +98,7 @@ export default function BallooningDetailRoute() {
               </div>
             }
           >
-            <BalloonDiagramEditor
+            <BalloonDocumentEditor
               diagramId={diagram.id}
               name={diagram.name}
               content={content}

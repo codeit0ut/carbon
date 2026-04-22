@@ -10,7 +10,16 @@ import { sanitize } from "~/utils/supabase";
 
 import type { inspectionStatus } from "../shared";
 import type {
-  ballooningDiagramValidator,
+  balloonAnchorCreateItemValidator,
+  balloonAnchorDeleteValidator,
+  balloonAnchorUpdateItemValidator,
+  balloonAnnotationCreateItemValidator,
+  balloonAnnotationDeleteValidator,
+  balloonAnnotationUpdateItemValidator,
+  balloonCreateFromPayloadItemValidator,
+  balloonDeleteValidator,
+  balloonDocumentValidator,
+  balloonUpdateItemValidator,
   gaugeCalibrationRecordValidator,
   gaugeCalibrationStatus,
   gaugeTypeValidator,
@@ -1770,9 +1779,9 @@ export async function upsertRisk(
   }
 }
 
-// ─── Ballooning Diagrams ─────────────────────────────────────────────────────
-// Stored in ballooningDrawing
-// This first step intentionally de-links ballooning diagrams from qualityDocument content.
+// ─── Balloon Documents ───────────────────────────────────────────────────────
+// Stored in balloonDocument
+// This first step intentionally de-links balloon documents from qualityDocument content.
 
 function toStoragePath(pdfUrl?: string | null) {
   if (!pdfUrl) return null;
@@ -1795,7 +1804,7 @@ function fileNameFromPath(storagePath?: string | null) {
   return storagePath.split("/").at(-1) ?? "drawing.pdf";
 }
 
-function mapBallooningDrawingToDiagram(row: Record<string, unknown>) {
+function mapBalloonDocument(row: Record<string, unknown>) {
   const drawingNumber = (row.drawingNumber as string | null) ?? null;
   return {
     id: String(row.id),
@@ -1816,7 +1825,7 @@ function mapBallooningDrawingToDiagram(row: Record<string, unknown>) {
   };
 }
 
-export async function getBallooningDiagrams(
+export async function getBalloonDocuments(
   client: SupabaseClient<Database>,
   companyId: string,
   args?: { search: string | null } & GenericQueryFilters
@@ -1825,55 +1834,41 @@ export async function getBallooningDiagrams(
     from: (table: string) => {
       select: (
         columns: string,
-        options?: { count?: "exact" }
-      ) => {
-        eq: (
-          column: string,
-          value: unknown
-        ) => {
-          is: (
-            column: string,
-            value: null
-          ) => {
-            or: (filter: string) => Promise<{
-              data: Record<string, unknown>[] | null;
-              count: number | null;
-              error: unknown;
-            }>;
-            order: (
-              column: string,
-              opts: { ascending: boolean }
-            ) => Promise<{
-              data: Record<string, unknown>[] | null;
-              count: number | null;
-              error: unknown;
-            }>;
-          };
-        };
-      };
+        options?: { count?: "exact" | "planned" | "estimated"; head?: boolean }
+      ) => any;
     };
   };
 
   let query = drawingClient
-    .from("ballooningDrawing")
+    .from("balloonDocument")
     .select("*", { count: "exact" })
     .eq("companyId", companyId)
     .is("deletedAt", null);
 
-  const result = args?.search
-    ? await query.or(
-        `drawingNumber.ilike.%${args.search}%,fileName.ilike.%${args.search}%`
-      )
-    : await query.order("drawingNumber", { ascending: true });
+  if (args?.search) {
+    query = query.or(
+      `drawingNumber.ilike.%${args.search}%,fileName.ilike.%${args.search}%`
+    );
+  }
+
+  if (args) {
+    query = setGenericQueryFilters(query, args, [
+      { column: "drawingNumber", ascending: true }
+    ]);
+  }
+
+  const result = await query;
 
   return {
-    data: (result.data ?? []).map(mapBallooningDrawingToDiagram),
+    data: (result.data ?? []).map((row: Record<string, unknown>) =>
+      mapBalloonDocument(row)
+    ),
     count: result.count ?? 0,
     error: result.error
   };
 }
 
-export async function getBallooningDiagram(
+export async function getBalloonDocument(
   client: SupabaseClient<Database>,
   id: string
 ) {
@@ -1899,30 +1894,31 @@ export async function getBallooningDiagram(
   };
 
   const result = await drawingClient
-    .from("ballooningDrawing")
+    .from("balloonDocument")
     .select("*")
     .eq("id", id)
     .is("deletedAt", null)
     .single();
 
   return {
-    data: result.data ? mapBallooningDrawingToDiagram(result.data) : null,
+    data: result.data ? mapBalloonDocument(result.data) : null,
     error: result.error
   };
 }
 
-export async function upsertBallooningDiagram(
+export async function upsertBalloonDocument(
   client: SupabaseClient<Database>,
   diagram:
-    | (Omit<z.infer<typeof ballooningDiagramValidator>, "id"> & {
+    | (Omit<z.infer<typeof balloonDocumentValidator>, "id"> & {
         id?: undefined;
         companyId: string;
         createdBy: string;
+        updatedBy?: string;
         pageCount?: number;
         defaultPageWidth?: number;
         defaultPageHeight?: number;
       })
-    | (Omit<z.infer<typeof ballooningDiagramValidator>, "id"> & {
+    | (Omit<z.infer<typeof balloonDocumentValidator>, "id"> & {
         id: string;
         companyId?: string;
         createdBy: string;
@@ -1948,6 +1944,22 @@ export async function upsertBallooningDiagram(
 
   const drawingClient = client as unknown as {
     from: (table: string) => {
+      select: (columns: string) => {
+        eq: (
+          column: string,
+          value: unknown
+        ) => {
+          is: (
+            column: string,
+            value: null
+          ) => {
+            single: () => Promise<{
+              data: Record<string, unknown> | null;
+              error: unknown;
+            }>;
+          };
+        };
+      };
       update: (payload: Record<string, unknown>) => {
         eq: (
           column: string,
@@ -1976,7 +1988,7 @@ export async function upsertBallooningDiagram(
 
   if (id) {
     const existingResult = await drawingClient
-      .from("ballooningDrawing")
+      .from("balloonDocument")
       .select("*")
       .eq("id", id)
       .is("deletedAt", null)
@@ -1987,7 +1999,7 @@ export async function upsertBallooningDiagram(
       return {
         data: null,
         error: {
-          message: "Ballooning drawing not found"
+          message: "Balloon document not found"
         }
       };
     }
@@ -2023,7 +2035,7 @@ export async function upsertBallooningDiagram(
     }
 
     return drawingClient
-      .from("ballooningDrawing")
+      .from("balloonDocument")
       .update(updatePayload)
       .eq("id", id)
       .select("id")
@@ -2033,14 +2045,14 @@ export async function upsertBallooningDiagram(
   if (!companyId) {
     return {
       data: null,
-      error: { message: "companyId is required to create ballooning drawing" }
+      error: { message: "companyId is required to create balloon document" }
     };
   }
 
   if (!storagePath) {
     return {
       data: null,
-      error: { message: "PDF upload is required to create ballooning diagram" }
+      error: { message: "PDF upload is required to create balloon document" }
     };
   }
 
@@ -2050,7 +2062,7 @@ export async function upsertBallooningDiagram(
       name,
       companyId,
       createdBy,
-      tags: ["ballooning"],
+      tags: ["balloonDocument"],
       status: "Active",
       content: {}
     })
@@ -2067,7 +2079,7 @@ export async function upsertBallooningDiagram(
   }
 
   return drawingClient
-    .from("ballooningDrawing")
+    .from("balloonDocument")
     .insert({
       companyId,
       qualityDocumentId: qualityDocumentInsert.data.id,
@@ -2088,12 +2100,28 @@ export async function upsertBallooningDiagram(
     .single();
 }
 
-export async function deleteBallooningDiagram(
+export async function deleteBalloonDocument(
   client: SupabaseClient<Database>,
   id: string
 ) {
   const drawingClient = client as unknown as {
     from: (table: string) => {
+      select: (columns: string) => {
+        eq: (
+          column: string,
+          value: unknown
+        ) => {
+          is: (
+            column: string,
+            value: null
+          ) => {
+            single: () => Promise<{
+              data: Record<string, unknown> | null;
+              error: unknown;
+            }>;
+          };
+        };
+      };
       update: (payload: Record<string, unknown>) => {
         eq: (
           column: string,
@@ -2106,7 +2134,7 @@ export async function deleteBallooningDiagram(
   };
 
   const existingResult = await drawingClient
-    .from("ballooningDrawing")
+    .from("balloonDocument")
     .select("*")
     .eq("id", id)
     .is("deletedAt", null)
@@ -2114,7 +2142,7 @@ export async function deleteBallooningDiagram(
 
   if (!existingResult.data) {
     return {
-      error: { message: "Ballooning drawing not found" }
+      error: { message: "Balloon document not found" }
     };
   }
 
@@ -2127,12 +2155,12 @@ export async function deleteBallooningDiagram(
     .eq("id", String(existingResult.data.qualityDocumentId));
 
   return drawingClient
-    .from("ballooningDrawing")
+    .from("balloonDocument")
     .update({ deletedAt: new Date().toISOString() })
     .eq("id", id);
 }
 
-export async function getBallooningSelectors(
+export async function getBalloonAnchors(
   client: SupabaseClient<Database>,
   drawingId: string
 ) {
@@ -2161,26 +2189,20 @@ export async function getBallooningSelectors(
   };
 
   return drawingClient
-    .from("ballooningSelector")
+    .from("balloonAnchor")
     .select("*")
     .eq("drawingId", drawingId)
     .is("deletedAt", null)
     .order("createdAt", { ascending: true });
 }
 
-export async function createBallooningSelectors(
+export async function createBalloonAnchors(
   client: SupabaseClient<Database>,
   args: {
     drawingId: string;
     companyId: string;
     createdBy: string;
-    selectors: {
-      pageNumber: number;
-      xCoordinate: number;
-      yCoordinate: number;
-      width: number;
-      height: number;
-    }[];
+    selectors: z.infer<typeof balloonAnchorCreateItemValidator>[];
   }
 ) {
   const drawingClient = client as unknown as {
@@ -2199,7 +2221,7 @@ export async function createBallooningSelectors(
   }
 
   return drawingClient
-    .from("ballooningSelector")
+    .from("balloonAnchor")
     .insert(
       args.selectors.map((s) => ({
         drawingId: args.drawingId,
@@ -2216,20 +2238,13 @@ export async function createBallooningSelectors(
     .select("*");
 }
 
-export async function updateBallooningSelectors(
+export async function updateBalloonAnchors(
   client: SupabaseClient<Database>,
   args: {
     drawingId: string;
     companyId: string;
     updatedBy: string;
-    selectors: {
-      id: string;
-      pageNumber?: number;
-      xCoordinate?: number;
-      yCoordinate?: number;
-      width?: number;
-      height?: number;
-    }[];
+    selectors: z.infer<typeof balloonAnchorUpdateItemValidator>[];
   }
 ) {
   const drawingClient = client as unknown as {
@@ -2239,10 +2254,20 @@ export async function updateBallooningSelectors(
           column: string,
           value: unknown
         ) => {
-          select: (columns: string) => Promise<{
-            data: Record<string, unknown>[] | null;
-            error: unknown;
-          }>;
+          eq: (
+            column: string,
+            value: unknown
+          ) => {
+            eq: (
+              column: string,
+              value: unknown
+            ) => {
+              select: (columns: string) => Promise<{
+                data: Record<string, unknown>[] | null;
+                error: unknown;
+              }>;
+            };
+          };
         };
       };
     };
@@ -2275,7 +2300,7 @@ export async function updateBallooningSelectors(
     }
 
     const result = await drawingClient
-      .from("ballooningSelector")
+      .from("balloonAnchor")
       .update(payload)
       .eq("id", selector.id)
       .eq("drawingId", args.drawingId)
@@ -2293,13 +2318,13 @@ export async function updateBallooningSelectors(
   return { data: updated, error: null };
 }
 
-export async function deleteBallooningSelectors(
+export async function deleteBalloonAnchors(
   client: SupabaseClient<Database>,
   args: {
     drawingId: string;
     companyId: string;
     updatedBy: string;
-    ids: string[];
+    ids: z.infer<typeof balloonAnchorDeleteValidator>["ids"];
   }
 ) {
   const drawingClient = client as unknown as {
@@ -2320,10 +2345,12 @@ export async function deleteBallooningSelectors(
               is: (
                 column: string,
                 value: null
-              ) => Promise<{
-                data: Record<string, unknown>[] | null;
-                error: unknown;
-              }>;
+              ) => {
+                select: (columns: string) => Promise<{
+                  data: Record<string, unknown>[] | null;
+                  error: unknown;
+                }>;
+              };
             };
           };
         };
@@ -2336,7 +2363,7 @@ export async function deleteBallooningSelectors(
   }
 
   return drawingClient
-    .from("ballooningSelector")
+    .from("balloonAnchor")
     .update({
       deletedAt: new Date().toISOString(),
       updatedBy: args.updatedBy,
@@ -2386,7 +2413,7 @@ function clampRectToBounds(rect: BalloonRect): BalloonRect {
   return { ...rect, x, y };
 }
 
-export async function getBallooningBalloons(
+export async function getBalloons(
   client: SupabaseClient<Database>,
   drawingId: string
 ) {
@@ -2418,14 +2445,14 @@ export async function getBallooningBalloons(
   };
 
   return drawingClient
-    .from("ballooningBalloon")
+    .from("balloon")
     .select("*")
     .eq("drawingId", drawingId)
     .is("deletedAt", null)
     .order("createdAt", { ascending: true });
 }
 
-export async function createBalloonsForSelectors(
+export async function createBalloonsForAnchors(
   client: SupabaseClient<Database>,
   args: {
     drawingId: string;
@@ -2473,7 +2500,7 @@ export async function createBalloonsForSelectors(
   }
 
   const existing = await drawingClient
-    .from("ballooningBalloon")
+    .from("balloon")
     .select("id, xCoordinate, yCoordinate, data", { count: "exact" })
     .eq("drawingId", args.drawingId)
     .is("deletedAt", null);
@@ -2509,7 +2536,7 @@ export async function createBalloonsForSelectors(
     })
     .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y));
 
-  return drawingClient.from("ballooningBalloon").insert(
+  return drawingClient.from("balloon").insert(
     args.selectors.map((s) => {
       const anchorX = clamp01(s.xCoordinate + s.width / 2);
       const anchorY = clamp01(s.yCoordinate + s.height / 2);
@@ -2599,23 +2626,14 @@ export async function createBalloonsForSelectors(
   );
 }
 
-export async function createBallooningBalloonsFromPayload(
+export async function createBalloonsFromPayload(
   client: SupabaseClient<Database>,
   args: {
     drawingId: string;
     companyId: string;
     createdBy: string;
     selectorIdMap: Record<string, string>;
-    balloons: Array<{
-      tempSelectorId: string;
-      label: string;
-      xCoordinate: number;
-      yCoordinate: number;
-      anchorX: number;
-      anchorY: number;
-      data: Record<string, unknown>;
-      description?: string | null;
-    }>;
+    balloons: z.infer<typeof balloonCreateFromPayloadItemValidator>[];
   }
 ) {
   const drawingClient = client as unknown as {
@@ -2660,26 +2678,17 @@ export async function createBallooningBalloonsFromPayload(
   }
 
   return drawingClient
-    .from("ballooningBalloon")
+    .from("balloon")
     .insert(rows as Record<string, unknown>[]);
 }
 
-export async function updateBallooningBalloons(
+export async function updateBalloons(
   client: SupabaseClient<Database>,
   args: {
     drawingId: string;
     companyId: string;
     updatedBy: string;
-    balloons: Array<{
-      id: string;
-      label?: string;
-      xCoordinate?: number;
-      yCoordinate?: number;
-      anchorX?: number;
-      anchorY?: number;
-      data?: Record<string, unknown>;
-      description?: string | null;
-    }>;
+    balloons: z.infer<typeof balloonUpdateItemValidator>[];
   }
 ) {
   const drawingClient = client as unknown as {
@@ -2700,10 +2709,12 @@ export async function updateBallooningBalloons(
               is: (
                 column: string,
                 value: null
-              ) => Promise<{
-                data: Record<string, unknown>[] | null;
-                error: unknown;
-              }>;
+              ) => {
+                select: (columns: string) => Promise<{
+                  data: Record<string, unknown>[] | null;
+                  error: unknown;
+                }>;
+              };
             };
           };
         };
@@ -2730,7 +2741,7 @@ export async function updateBallooningBalloons(
     if (b.description !== undefined) payload.description = b.description;
 
     const result = await drawingClient
-      .from("ballooningBalloon")
+      .from("balloon")
       .update(payload)
       .eq("id", b.id)
       .eq("drawingId", args.drawingId)
@@ -2749,13 +2760,13 @@ export async function updateBallooningBalloons(
   return { data: updated, error: null };
 }
 
-export async function deleteBallooningBalloons(
+export async function deleteBalloons(
   client: SupabaseClient<Database>,
   args: {
     drawingId: string;
     companyId: string;
     updatedBy: string;
-    ids: string[];
+    ids: z.infer<typeof balloonDeleteValidator>["ids"];
   }
 ) {
   const drawingClient = client as unknown as {
@@ -2776,10 +2787,12 @@ export async function deleteBallooningBalloons(
               is: (
                 column: string,
                 value: null
-              ) => Promise<{
-                data: Record<string, unknown>[] | null;
-                error: unknown;
-              }>;
+              ) => {
+                select: (columns: string) => Promise<{
+                  data: Record<string, unknown>[] | null;
+                  error: unknown;
+                }>;
+              };
             };
           };
         };
@@ -2792,7 +2805,242 @@ export async function deleteBallooningBalloons(
   }
 
   return drawingClient
-    .from("ballooningBalloon")
+    .from("balloon")
+    .update({
+      deletedAt: new Date().toISOString(),
+      updatedBy: args.updatedBy,
+      updatedAt: new Date().toISOString()
+    })
+    .in("id", args.ids)
+    .eq("drawingId", args.drawingId)
+    .eq("companyId", args.companyId)
+    .is("deletedAt", null)
+    .select("id");
+}
+
+export async function getBalloonAnnotations(
+  client: SupabaseClient<Database>,
+  drawingId: string
+) {
+  const drawingClient = client as unknown as {
+    from: (table: string) => {
+      select: (columns: string) => {
+        eq: (
+          column: string,
+          value: unknown
+        ) => {
+          is: (
+            column: string,
+            value: null
+          ) => {
+            order: (
+              column: string,
+              opts: { ascending: boolean }
+            ) => Promise<{
+              data: Record<string, unknown>[] | null;
+              error: unknown;
+            }>;
+          };
+        };
+      };
+    };
+  };
+
+  return drawingClient
+    .from("balloonAnnotation")
+    .select("*")
+    .eq("drawingId", drawingId)
+    .is("deletedAt", null)
+    .order("createdAt", { ascending: true });
+}
+
+export async function createBalloonAnnotations(
+  client: SupabaseClient<Database>,
+  args: {
+    drawingId: string;
+    companyId: string;
+    createdBy: string;
+    annotations: z.infer<typeof balloonAnnotationCreateItemValidator>[];
+  }
+) {
+  const drawingClient = client as unknown as {
+    from: (table: string) => {
+      insert: (payload: Record<string, unknown>[]) => {
+        select: (columns: string) => Promise<{
+          data: Record<string, unknown>[] | null;
+          error: unknown;
+        }>;
+      };
+    };
+  };
+
+  if (args.annotations.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return drawingClient
+    .from("balloonAnnotation")
+    .insert(
+      args.annotations.map((annotation) => ({
+        drawingId: args.drawingId,
+        companyId: args.companyId,
+        pageNumber: annotation.pageNumber,
+        xCoordinate: annotation.xCoordinate,
+        yCoordinate: annotation.yCoordinate,
+        text: annotation.text,
+        width: annotation.width ?? null,
+        height: annotation.height ?? null,
+        rotation: annotation.rotation ?? 0,
+        style: annotation.style ?? null,
+        createdBy: args.createdBy,
+        updatedBy: args.createdBy
+      }))
+    )
+    .select("*");
+}
+
+export async function updateBalloonAnnotations(
+  client: SupabaseClient<Database>,
+  args: {
+    drawingId: string;
+    companyId: string;
+    updatedBy: string;
+    annotations: z.infer<typeof balloonAnnotationUpdateItemValidator>[];
+  }
+) {
+  const drawingClient = client as unknown as {
+    from: (table: string) => {
+      update: (payload: Record<string, unknown>) => {
+        eq: (
+          column: string,
+          value: unknown
+        ) => {
+          eq: (
+            column: string,
+            value: unknown
+          ) => {
+            eq: (
+              column: string,
+              value: unknown
+            ) => {
+              is: (
+                column: string,
+                value: null
+              ) => {
+                select: (columns: string) => Promise<{
+                  data: Record<string, unknown>[] | null;
+                  error: unknown;
+                }>;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+
+  if (args.annotations.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const updated: Record<string, unknown>[] = [];
+  for (const annotation of args.annotations) {
+    const payload: Record<string, unknown> = {
+      updatedBy: args.updatedBy,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (typeof annotation.pageNumber === "number") {
+      payload.pageNumber = annotation.pageNumber;
+    }
+    if (typeof annotation.xCoordinate === "number") {
+      payload.xCoordinate = annotation.xCoordinate;
+    }
+    if (typeof annotation.yCoordinate === "number") {
+      payload.yCoordinate = annotation.yCoordinate;
+    }
+    if (typeof annotation.text === "string") {
+      payload.text = annotation.text;
+    }
+    if (annotation.width !== undefined) {
+      payload.width = annotation.width;
+    }
+    if (annotation.height !== undefined) {
+      payload.height = annotation.height;
+    }
+    if (typeof annotation.rotation === "number") {
+      payload.rotation = annotation.rotation;
+    }
+    if (annotation.style !== undefined) {
+      payload.style = annotation.style;
+    }
+
+    const result = await drawingClient
+      .from("balloonAnnotation")
+      .update(payload)
+      .eq("id", annotation.id)
+      .eq("drawingId", args.drawingId)
+      .eq("companyId", args.companyId)
+      .is("deletedAt", null)
+      .select("*");
+
+    if (result.error) {
+      return { data: null, error: result.error };
+    }
+    if (result.data?.[0]) {
+      updated.push(result.data[0]);
+    }
+  }
+
+  return { data: updated, error: null };
+}
+
+export async function deleteBalloonAnnotations(
+  client: SupabaseClient<Database>,
+  args: {
+    drawingId: string;
+    companyId: string;
+    updatedBy: string;
+    ids: z.infer<typeof balloonAnnotationDeleteValidator>["ids"];
+  }
+) {
+  const drawingClient = client as unknown as {
+    from: (table: string) => {
+      update: (payload: Record<string, unknown>) => {
+        in: (
+          column: string,
+          values: string[]
+        ) => {
+          eq: (
+            column: string,
+            value: unknown
+          ) => {
+            eq: (
+              column: string,
+              value: unknown
+            ) => {
+              is: (
+                column: string,
+                value: null
+              ) => {
+                select: (columns: string) => Promise<{
+                  data: Record<string, unknown>[] | null;
+                  error: unknown;
+                }>;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+
+  if (args.ids.length === 0) {
+    return { data: [], error: null };
+  }
+
+  return drawingClient
+    .from("balloonAnnotation")
     .update({
       deletedAt: new Date().toISOString(),
       updatedBy: args.updatedBy,

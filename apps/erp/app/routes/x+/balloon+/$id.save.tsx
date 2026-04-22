@@ -3,17 +3,30 @@ import { requirePermissions } from "@carbon/auth/auth.server";
 import type { ActionFunctionArgs } from "react-router";
 import { data } from "react-router";
 import {
-  createBallooningBalloonsFromPayload,
-  createBallooningSelectors,
-  createBalloonsForSelectors,
-  deleteBallooningBalloons,
-  deleteBallooningSelectors,
-  getBallooningBalloons,
-  getBallooningSelectors,
-  updateBallooningBalloons,
-  updateBallooningSelectors,
-  upsertBallooningDiagram
+  createBalloonAnchors,
+  createBalloonsForAnchors,
+  createBalloonsFromPayload,
+  deleteBalloonAnchors,
+  deleteBalloons,
+  getBalloonAnchors,
+  getBalloons,
+  updateBalloonAnchors,
+  updateBalloons,
+  upsertBalloonDocument
 } from "~/modules/quality";
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+  return fallback;
+}
 
 export async function action({ request, params }: ActionFunctionArgs) {
   assertIsPost(request);
@@ -47,7 +60,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       ? Number(defaultPageHeightRaw)
       : undefined;
 
-  const result = await upsertBallooningDiagram(client, {
+  const result = await upsertBalloonDocument(client, {
     id,
     name,
     pdfUrl: pdfUrl ?? undefined,
@@ -61,7 +74,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (result.error) {
     return data(
-      { success: false, message: result.error.message },
+      {
+        success: false,
+        message: getErrorMessage(
+          result.error,
+          "Failed to save balloon document"
+        )
+      },
       { status: 400 }
     );
   }
@@ -189,7 +208,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   if (balloonDeleteIds.length > 0) {
-    const delBalloons = await deleteBallooningBalloons(client, {
+    const delBalloons = await deleteBalloons(client, {
       drawingId: id,
       companyId,
       updatedBy: userId,
@@ -291,7 +310,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     if (selectorDeleteIds.length > 0) {
-      const delSelectors = await deleteBallooningSelectors(client, {
+      const delSelectors = await deleteBalloonAnchors(client, {
         drawingId: id,
         companyId,
         updatedBy: userId,
@@ -305,7 +324,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
     }
 
-    const createSelectorsResult = await createBallooningSelectors(client, {
+    const createSelectorsResult = await createBalloonAnchors(client, {
       drawingId: id,
       companyId,
       createdBy: userId,
@@ -343,7 +362,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     if (balloonsParsed?.create?.length) {
-      const fromPayload = await createBallooningBalloonsFromPayload(client, {
+      const fromPayload = await createBalloonsFromPayload(client, {
         drawingId: id,
         companyId,
         createdBy: userId,
@@ -358,9 +377,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           data: b.data,
           description:
             b.description ??
-            (typeof b.data["featureName"] === "string"
-              ? b.data["featureName"]
-              : null)
+            (typeof b.data.featureName === "string" ? b.data.featureName : null)
         }))
       });
 
@@ -371,7 +388,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
     } else if (insertedSelectors.length > 0) {
-      const createBalloonsResult = await createBalloonsForSelectors(client, {
+      const createBalloonsResult = await createBalloonsForAnchors(client, {
         drawingId: id,
         companyId,
         createdBy: userId,
@@ -386,7 +403,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
     }
 
-    const updateSelectorsResult = await updateBallooningSelectors(client, {
+    const updateSelectorsResult = await updateBalloonAnchors(client, {
       drawingId: id,
       companyId,
       updatedBy: userId,
@@ -402,7 +419,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   if (balloonsParsed?.update?.length) {
-    const updateBalloonsResult = await updateBallooningBalloons(client, {
+    const updateBalloonsResult = await updateBalloons(client, {
       drawingId: id,
       companyId,
       updatedBy: userId,
@@ -418,15 +435,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   const [selectorsResult, balloonsResult] = await Promise.all([
-    getBallooningSelectors(client, id),
-    getBallooningBalloons(client, id)
+    getBalloonAnchors(client, id),
+    getBalloons(client, id)
   ]);
 
   if (selectorsResult.error || balloonsResult.error) {
     return data(
       {
         success: false,
-        message: "Saved but failed to reload persisted ballooning data"
+        message: "Saved but failed to reload persisted balloon document data"
       },
       { status: 500 }
     );

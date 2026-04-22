@@ -1,8 +1,23 @@
 import type { Database } from "@carbon/database";
-import type { nonConformanceAssociationType } from "./quality.models";
+import type { z } from "zod";
 import type {
-  getBallooningDiagram,
-  getBallooningDiagrams,
+  balloonAnchorCreateItemValidator,
+  balloonAnchorDeleteValidator,
+  balloonAnchorUpdateItemValidator,
+  balloonAnnotationCreateItemValidator,
+  balloonAnnotationDeleteValidator,
+  balloonAnnotationUpdateItemValidator,
+  balloonCreateFromPayloadItemValidator,
+  balloonDeleteValidator,
+  balloonUpdateItemValidator,
+  nonConformanceAssociationType
+} from "./quality.models";
+import type {
+  getBalloonAnchors,
+  getBalloonAnnotations,
+  getBalloonDocument,
+  getBalloonDocuments,
+  getBalloons,
   getGaugeCalibrationRecords,
   getGauges,
   getGaugeTypes,
@@ -23,13 +38,24 @@ import type {
   getRisks
 } from "./quality.service";
 
-export type BallooningDiagram = NonNullable<
-  Awaited<ReturnType<typeof getBallooningDiagrams>>["data"]
+export type BalloonDocument = NonNullable<
+  Awaited<ReturnType<typeof getBalloonDocuments>>["data"]
 >[number];
 
-export type BallooningDiagramDetail = NonNullable<
-  Awaited<ReturnType<typeof getBallooningDiagram>>["data"]
+export type BalloonDocumentDetail = NonNullable<
+  Awaited<ReturnType<typeof getBalloonDocument>>["data"]
 >;
+
+export type BalloonAnchor = NonNullable<
+  Awaited<ReturnType<typeof getBalloonAnchors>>["data"]
+>[number];
+
+export type Balloon = NonNullable<
+  Awaited<ReturnType<typeof getBalloons>>["data"]
+>[number];
+export type BalloonAnnotationRecord = NonNullable<
+  Awaited<ReturnType<typeof getBalloonAnnotations>>["data"]
+>[number];
 
 export type BalloonAnnotation = {
   id: string;
@@ -57,13 +83,38 @@ export type BalloonFeature = {
   sortOrder: number;
 };
 
-export type BallooningDiagramContent = {
+export type BalloonDocumentContent = {
   drawingNumber: string | null;
   revision: string | null;
   pdfUrl: string | null;
   annotations: BalloonAnnotation[];
   features: BalloonFeature[];
 };
+
+export type BalloonAnchorCreateItem = z.infer<
+  typeof balloonAnchorCreateItemValidator
+>;
+export type BalloonAnchorUpdateItem = z.infer<
+  typeof balloonAnchorUpdateItemValidator
+>;
+export type BalloonAnchorDeleteIds = z.infer<
+  typeof balloonAnchorDeleteValidator
+>["ids"];
+
+export type BalloonCreateFromPayloadItem = z.infer<
+  typeof balloonCreateFromPayloadItemValidator
+>;
+export type BalloonUpdateItem = z.infer<typeof balloonUpdateItemValidator>;
+export type BalloonDeleteIds = z.infer<typeof balloonDeleteValidator>["ids"];
+export type BalloonAnnotationCreateItem = z.infer<
+  typeof balloonAnnotationCreateItemValidator
+>;
+export type BalloonAnnotationUpdateItem = z.infer<
+  typeof balloonAnnotationUpdateItemValidator
+>;
+export type BalloonAnnotationDeleteIds = z.infer<
+  typeof balloonAnnotationDeleteValidator
+>["ids"];
 
 export type Gauge = NonNullable<
   Awaited<ReturnType<typeof getGauges>>["data"]

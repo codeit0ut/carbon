@@ -3,7 +3,7 @@ import { requirePermissions } from "@carbon/auth/auth.server";
 import { flash } from "@carbon/auth/session.server";
 import type { ActionFunctionArgs } from "react-router";
 import { redirect } from "react-router";
-import { deleteBallooningDiagram } from "~/modules/quality";
+import { deleteBalloonDocument } from "~/modules/quality";
 import { path } from "~/utils/path";
 
 export async function action({ request, params }: ActionFunctionArgs) {
@@ -15,20 +15,20 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const { id } = params;
   if (!id) throw new Error("Could not find id");
 
-  const result = await deleteBallooningDiagram(client, id);
+  const result = await deleteBalloonDocument(client, id);
 
   if (result.error) {
     throw redirect(
-      path.to.ballooningDiagrams,
+      path.to.balloonDocuments,
       await flash(
         request,
-        error(result.error, "Failed to delete ballooning diagram")
+        error(result.error, "Failed to delete balloon document")
       )
     );
   }
 
   throw redirect(
-    path.to.ballooningDiagrams,
-    await flash(request, success("Ballooning diagram deleted"))
+    path.to.balloonDocuments,
+    await flash(request, success("Balloon document deleted"))
   );
 }

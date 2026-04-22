@@ -17,10 +17,10 @@ import { type ChangeEvent, useRef, useState } from "react";
 import { LuLoader, LuUpload } from "react-icons/lu";
 import { Hidden, Input, Submit } from "~/components/Form";
 import { useUser } from "~/hooks";
-import { ballooningDiagramValidator } from "~/modules/quality/quality.models";
+import { balloonDocumentValidator } from "~/modules/quality/quality.models";
 import { path } from "~/utils/path";
 
-type BallooningFormProps = {
+type BalloonDocumentFormProps = {
   initialValues: {
     id?: string;
     name: string;
@@ -30,10 +30,10 @@ type BallooningFormProps = {
   onClose: () => void;
 };
 
-export default function BallooningForm({
+export default function BalloonDocumentForm({
   initialValues,
   onClose
-}: BallooningFormProps) {
+}: BalloonDocumentFormProps) {
   const { t } = useLingui();
   const { carbon } = useCarbon();
   const user = useUser();
@@ -48,7 +48,7 @@ export default function BallooningForm({
 
     setUploading(true);
     const tempId = initialValues.id ?? nanoid();
-    const storagePath = `${user.company.id}/ballooning/${tempId}/${nanoid()}.pdf`;
+    const storagePath = `${user.company.id}/balloonDocument/${tempId}/${nanoid()}.pdf`;
     const result = await carbon.storage
       .from("private")
       .upload(storagePath, file);
@@ -67,21 +67,19 @@ export default function BallooningForm({
     <Drawer open onOpenChange={(open) => !open && onClose()}>
       <DrawerContent>
         <ValidatedForm
-          validator={ballooningDiagramValidator}
+          validator={balloonDocumentValidator}
           method="post"
           action={
             isEditing
-              ? path.to.ballooningDiagram(initialValues.id!)
-              : path.to.newBallooningDiagram
+              ? path.to.balloonDocument(initialValues.id!)
+              : path.to.newBalloonDocument
           }
           defaultValues={initialValues}
           className="flex flex-col h-full"
         >
           <DrawerHeader>
             <DrawerTitle>
-              {isEditing
-                ? t`Edit Ballooning Diagram`
-                : t`New Ballooning Diagram`}
+              {isEditing ? t`Edit Balloon Document` : t`New Balloon Document`}
             </DrawerTitle>
           </DrawerHeader>
           <DrawerBody>

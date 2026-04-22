@@ -808,12 +808,13 @@ export const path = {
       generatePath(`${x}/resources/failure-modes/${id}`),
     failureModes: `${x}/resources/failure-modes`,
     fiscalYears: `${x}/accounting/years`,
-    ballooningDiagram: (id: string) =>
-      generatePath(`${x}/ballooning-diagram/${id}`),
-    ballooningDiagrams: `${x}/quality/ballooning`,
-    deleteBallooningDiagram: (id: string) =>
-      generatePath(`${x}/ballooning-diagram/delete/${id}`),
-    newBallooningDiagram: `${x}/quality/ballooning/new`,
+    balloonDocument: (id: string) => generatePath(`${x}/balloon/${id}`),
+    balloonDocuments: `${x}/balloon`,
+    deleteBalloonDocument: (id: string) =>
+      generatePath(`${x}/balloon/${id}/delete`),
+    newBalloonDocument: `${x}/balloon/new`,
+    saveBalloonDocument: (id: string) =>
+      generatePath(`${x}/balloon/${id}/save`),
     gauge: (id: string) => generatePath(`${x}/quality/gauges/${id}`),
     gauges: `${x}/quality/gauges`,
     gaugeCalibrationRecord: (id: string) =>

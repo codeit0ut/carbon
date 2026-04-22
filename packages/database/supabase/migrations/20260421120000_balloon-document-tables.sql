@@ -1,9 +1,9 @@
--- Ballooning tables
--- - Uses "ballooningDrawing" as parent entity
--- - "ballooningBalloon" derives page from linked selector (no pageNumber column)
+-- Balloon document tables
+-- - Uses "balloonDocument" as parent entity
+-- - "balloon" derives page from linked selector (no pageNumber column)
 -- - Enforces tenant consistency with composite (id, companyId) foreign keys
 
-CREATE TABLE "ballooningDrawing" (
+CREATE TABLE "balloonDocument" (
   "id" TEXT NOT NULL DEFAULT id('bdr'),
   "companyId" TEXT NOT NULL,
   "qualityDocumentId" TEXT NOT NULL,
@@ -22,26 +22,26 @@ CREATE TABLE "ballooningDrawing" (
   "updatedBy" TEXT,
   "updatedAt" TIMESTAMP WITH TIME ZONE,
 
-  CONSTRAINT "ballooningDrawing_pkey" PRIMARY KEY ("id", "companyId"),
-  CONSTRAINT "ballooningDrawing_id_unique" UNIQUE ("id"),
-  CONSTRAINT "ballooningDrawing_version_check" CHECK ("version" >= 0),
-  CONSTRAINT "ballooningDrawing_pageCount_check" CHECK ("pageCount" > 0),
-  CONSTRAINT "ballooningDrawing_defaultPageWidth_check" CHECK ("defaultPageWidth" > 0),
-  CONSTRAINT "ballooningDrawing_defaultPageHeight_check" CHECK ("defaultPageHeight" > 0),
+  CONSTRAINT "balloonDocument_pkey" PRIMARY KEY ("id", "companyId"),
+  CONSTRAINT "balloonDocument_id_unique" UNIQUE ("id"),
+  CONSTRAINT "balloonDocument_version_check" CHECK ("version" >= 0),
+  CONSTRAINT "balloonDocument_pageCount_check" CHECK ("pageCount" > 0),
+  CONSTRAINT "balloonDocument_defaultPageWidth_check" CHECK ("defaultPageWidth" > 0),
+  CONSTRAINT "balloonDocument_defaultPageHeight_check" CHECK ("defaultPageHeight" > 0),
 
-  CONSTRAINT "ballooningDrawing_companyId_fkey"
+  CONSTRAINT "balloonDocument_companyId_fkey"
     FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "ballooningDrawing_qualityDocumentId_fkey"
+  CONSTRAINT "balloonDocument_qualityDocumentId_fkey"
     FOREIGN KEY ("qualityDocumentId") REFERENCES "qualityDocument"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT "ballooningDrawing_uploadedBy_fkey"
+  CONSTRAINT "balloonDocument_uploadedBy_fkey"
     FOREIGN KEY ("uploadedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "ballooningDrawing_createdBy_fkey"
+  CONSTRAINT "balloonDocument_createdBy_fkey"
     FOREIGN KEY ("createdBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "ballooningDrawing_updatedBy_fkey"
+  CONSTRAINT "balloonDocument_updatedBy_fkey"
     FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE
 );
 
-CREATE TABLE "ballooningSelector" (
+CREATE TABLE "balloonAnchor" (
   "id" TEXT NOT NULL DEFAULT id('bsl'),
   "drawingId" TEXT NOT NULL,
   "companyId" TEXT NOT NULL,
@@ -56,29 +56,29 @@ CREATE TABLE "ballooningSelector" (
   "updatedBy" TEXT,
   "updatedAt" TIMESTAMP WITH TIME ZONE,
 
-  CONSTRAINT "ballooningSelector_pkey" PRIMARY KEY ("id", "companyId"),
-  CONSTRAINT "ballooningSelector_id_unique" UNIQUE ("id"),
-  CONSTRAINT "ballooningSelector_pageNumber_check" CHECK ("pageNumber" > 0),
-  CONSTRAINT "ballooningSelector_xCoordinate_check" CHECK ("xCoordinate" >= 0 AND "xCoordinate" <= 1),
-  CONSTRAINT "ballooningSelector_yCoordinate_check" CHECK ("yCoordinate" >= 0 AND "yCoordinate" <= 1),
-  CONSTRAINT "ballooningSelector_width_check" CHECK ("width" > 0 AND "width" <= 1),
-  CONSTRAINT "ballooningSelector_height_check" CHECK ("height" > 0 AND "height" <= 1),
-  CONSTRAINT "ballooningSelector_xw_bounds_check" CHECK ("xCoordinate" + "width" <= 1),
-  CONSTRAINT "ballooningSelector_yh_bounds_check" CHECK ("yCoordinate" + "height" <= 1),
+  CONSTRAINT "balloonAnchor_pkey" PRIMARY KEY ("id", "companyId"),
+  CONSTRAINT "balloonAnchor_id_unique" UNIQUE ("id"),
+  CONSTRAINT "balloonAnchor_pageNumber_check" CHECK ("pageNumber" > 0),
+  CONSTRAINT "balloonAnchor_xCoordinate_check" CHECK ("xCoordinate" >= 0 AND "xCoordinate" <= 1),
+  CONSTRAINT "balloonAnchor_yCoordinate_check" CHECK ("yCoordinate" >= 0 AND "yCoordinate" <= 1),
+  CONSTRAINT "balloonAnchor_width_check" CHECK ("width" > 0 AND "width" <= 1),
+  CONSTRAINT "balloonAnchor_height_check" CHECK ("height" > 0 AND "height" <= 1),
+  CONSTRAINT "balloonAnchor_xw_bounds_check" CHECK ("xCoordinate" + "width" <= 1),
+  CONSTRAINT "balloonAnchor_yh_bounds_check" CHECK ("yCoordinate" + "height" <= 1),
 
-  CONSTRAINT "ballooningSelector_companyId_fkey"
+  CONSTRAINT "balloonAnchor_companyId_fkey"
     FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "ballooningSelector_createdBy_fkey"
+  CONSTRAINT "balloonAnchor_createdBy_fkey"
     FOREIGN KEY ("createdBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "ballooningSelector_updatedBy_fkey"
+  CONSTRAINT "balloonAnchor_updatedBy_fkey"
     FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "ballooningSelector_drawing_company_fkey"
+  CONSTRAINT "balloonAnchor_drawing_company_fkey"
     FOREIGN KEY ("drawingId", "companyId")
-    REFERENCES "ballooningDrawing"("id", "companyId")
+    REFERENCES "balloonDocument"("id", "companyId")
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE "ballooningBalloon" (
+CREATE TABLE "balloon" (
   "id" TEXT NOT NULL DEFAULT id('bbn'),
   "selectorId" TEXT NOT NULL,
   "drawingId" TEXT NOT NULL,
@@ -96,31 +96,31 @@ CREATE TABLE "ballooningBalloon" (
   "updatedBy" TEXT,
   "updatedAt" TIMESTAMP WITH TIME ZONE,
 
-  CONSTRAINT "ballooningBalloon_pkey" PRIMARY KEY ("id", "companyId"),
-  CONSTRAINT "ballooningBalloon_id_unique" UNIQUE ("id"),
-  CONSTRAINT "ballooningBalloon_selectorId_unique" UNIQUE ("selectorId"),
-  CONSTRAINT "ballooningBalloon_xCoordinate_check" CHECK ("xCoordinate" >= 0 AND "xCoordinate" <= 1),
-  CONSTRAINT "ballooningBalloon_yCoordinate_check" CHECK ("yCoordinate" >= 0 AND "yCoordinate" <= 1),
-  CONSTRAINT "ballooningBalloon_anchorX_check" CHECK ("anchorX" IS NULL OR ("anchorX" >= 0 AND "anchorX" <= 1)),
-  CONSTRAINT "ballooningBalloon_anchorY_check" CHECK ("anchorY" IS NULL OR ("anchorY" >= 0 AND "anchorY" <= 1)),
+  CONSTRAINT "balloon_pkey" PRIMARY KEY ("id", "companyId"),
+  CONSTRAINT "balloon_id_unique" UNIQUE ("id"),
+  CONSTRAINT "balloon_selectorId_unique" UNIQUE ("selectorId"),
+  CONSTRAINT "balloon_xCoordinate_check" CHECK ("xCoordinate" >= 0 AND "xCoordinate" <= 1),
+  CONSTRAINT "balloon_yCoordinate_check" CHECK ("yCoordinate" >= 0 AND "yCoordinate" <= 1),
+  CONSTRAINT "balloon_anchorX_check" CHECK ("anchorX" IS NULL OR ("anchorX" >= 0 AND "anchorX" <= 1)),
+  CONSTRAINT "balloon_anchorY_check" CHECK ("anchorY" IS NULL OR ("anchorY" >= 0 AND "anchorY" <= 1)),
 
-  CONSTRAINT "ballooningBalloon_companyId_fkey"
+  CONSTRAINT "balloon_companyId_fkey"
     FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "ballooningBalloon_createdBy_fkey"
+  CONSTRAINT "balloon_createdBy_fkey"
     FOREIGN KEY ("createdBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "ballooningBalloon_updatedBy_fkey"
+  CONSTRAINT "balloon_updatedBy_fkey"
     FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "ballooningBalloon_drawing_company_fkey"
+  CONSTRAINT "balloon_drawing_company_fkey"
     FOREIGN KEY ("drawingId", "companyId")
-    REFERENCES "ballooningDrawing"("id", "companyId")
+    REFERENCES "balloonDocument"("id", "companyId")
     ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "ballooningBalloon_selector_company_fkey"
+  CONSTRAINT "balloon_selector_company_fkey"
     FOREIGN KEY ("selectorId", "companyId")
-    REFERENCES "ballooningSelector"("id", "companyId")
+    REFERENCES "balloonAnchor"("id", "companyId")
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE "ballooningAnnotation" (
+CREATE TABLE "balloonAnnotation" (
   "id" TEXT NOT NULL DEFAULT id('ban'),
   "drawingId" TEXT NOT NULL,
   "companyId" TEXT NOT NULL,
@@ -138,44 +138,44 @@ CREATE TABLE "ballooningAnnotation" (
   "updatedBy" TEXT,
   "updatedAt" TIMESTAMP WITH TIME ZONE,
 
-  CONSTRAINT "ballooningAnnotation_pkey" PRIMARY KEY ("id", "companyId"),
-  CONSTRAINT "ballooningAnnotation_id_unique" UNIQUE ("id"),
-  CONSTRAINT "ballooningAnnotation_pageNumber_check" CHECK ("pageNumber" > 0),
-  CONSTRAINT "ballooningAnnotation_xCoordinate_check" CHECK ("xCoordinate" >= 0 AND "xCoordinate" <= 1),
-  CONSTRAINT "ballooningAnnotation_yCoordinate_check" CHECK ("yCoordinate" >= 0 AND "yCoordinate" <= 1),
-  CONSTRAINT "ballooningAnnotation_companyId_fkey"
+  CONSTRAINT "balloonAnnotation_pkey" PRIMARY KEY ("id", "companyId"),
+  CONSTRAINT "balloonAnnotation_id_unique" UNIQUE ("id"),
+  CONSTRAINT "balloonAnnotation_pageNumber_check" CHECK ("pageNumber" > 0),
+  CONSTRAINT "balloonAnnotation_xCoordinate_check" CHECK ("xCoordinate" >= 0 AND "xCoordinate" <= 1),
+  CONSTRAINT "balloonAnnotation_yCoordinate_check" CHECK ("yCoordinate" >= 0 AND "yCoordinate" <= 1),
+  CONSTRAINT "balloonAnnotation_companyId_fkey"
     FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "ballooningAnnotation_createdBy_fkey"
+  CONSTRAINT "balloonAnnotation_createdBy_fkey"
     FOREIGN KEY ("createdBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "ballooningAnnotation_updatedBy_fkey"
+  CONSTRAINT "balloonAnnotation_updatedBy_fkey"
     FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "ballooningAnnotation_drawing_company_fkey"
+  CONSTRAINT "balloonAnnotation_drawing_company_fkey"
     FOREIGN KEY ("drawingId", "companyId")
-    REFERENCES "ballooningDrawing"("id", "companyId")
+    REFERENCES "balloonDocument"("id", "companyId")
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE INDEX "ballooningDrawing_companyId_idx" ON "ballooningDrawing" ("companyId");
-CREATE INDEX "ballooningDrawing_qualityDocumentId_idx" ON "ballooningDrawing" ("qualityDocumentId");
+CREATE INDEX "balloonDocument_companyId_idx" ON "balloonDocument" ("companyId");
+CREATE INDEX "balloonDocument_qualityDocumentId_idx" ON "balloonDocument" ("qualityDocumentId");
 
-CREATE INDEX "ballooningSelector_companyId_idx" ON "ballooningSelector" ("companyId");
-CREATE INDEX "ballooningSelector_drawingId_idx" ON "ballooningSelector" ("drawingId");
-CREATE INDEX "ballooningSelector_drawing_page_idx" ON "ballooningSelector" ("drawingId", "companyId", "pageNumber");
-CREATE INDEX "ballooningSelector_active_page_idx"
-  ON "ballooningSelector" ("drawingId", "companyId", "pageNumber")
+CREATE INDEX "balloonAnchor_companyId_idx" ON "balloonAnchor" ("companyId");
+CREATE INDEX "balloonAnchor_drawingId_idx" ON "balloonAnchor" ("drawingId");
+CREATE INDEX "balloonAnchor_drawing_page_idx" ON "balloonAnchor" ("drawingId", "companyId", "pageNumber");
+CREATE INDEX "balloonAnchor_active_page_idx"
+  ON "balloonAnchor" ("drawingId", "companyId", "pageNumber")
   WHERE "deletedAt" IS NULL;
 
-CREATE INDEX "ballooningBalloon_companyId_idx" ON "ballooningBalloon" ("companyId");
-CREATE INDEX "ballooningBalloon_drawingId_idx" ON "ballooningBalloon" ("drawingId");
-CREATE INDEX "ballooningBalloon_selectorId_idx" ON "ballooningBalloon" ("selectorId");
-CREATE INDEX "ballooningBalloon_active_drawing_idx"
-  ON "ballooningBalloon" ("drawingId", "companyId")
+CREATE INDEX "balloon_companyId_idx" ON "balloon" ("companyId");
+CREATE INDEX "balloon_drawingId_idx" ON "balloon" ("drawingId");
+CREATE INDEX "balloon_selectorId_idx" ON "balloon" ("selectorId");
+CREATE INDEX "balloon_active_drawing_idx"
+  ON "balloon" ("drawingId", "companyId")
   WHERE "deletedAt" IS NULL;
 
-CREATE INDEX "ballooningAnnotation_companyId_idx" ON "ballooningAnnotation" ("companyId");
-CREATE INDEX "ballooningAnnotation_drawing_page_idx" ON "ballooningAnnotation" ("drawingId", "companyId", "pageNumber");
-CREATE INDEX "ballooningAnnotation_active_page_idx"
-  ON "ballooningAnnotation" ("drawingId", "companyId", "pageNumber")
+CREATE INDEX "balloonAnnotation_companyId_idx" ON "balloonAnnotation" ("companyId");
+CREATE INDEX "balloonAnnotation_drawing_page_idx" ON "balloonAnnotation" ("drawingId", "companyId", "pageNumber");
+CREATE INDEX "balloonAnnotation_active_page_idx"
+  ON "balloonAnnotation" ("drawingId", "companyId", "pageNumber")
   WHERE "deletedAt" IS NULL;
 
 CREATE OR REPLACE FUNCTION enforce_unique_balloon_label_per_page()
@@ -188,7 +188,7 @@ DECLARE
 BEGIN
   SELECT s."pageNumber"
     INTO v_page_number
-  FROM "ballooningSelector" s
+  FROM "balloonAnchor" s
   WHERE s."id" = NEW."selectorId"
     AND s."companyId" = NEW."companyId"
     AND s."deletedAt" IS NULL;
@@ -199,8 +199,8 @@ BEGIN
 
   SELECT b."id"
     INTO v_conflict_id
-  FROM "ballooningBalloon" b
-  JOIN "ballooningSelector" s ON s."id" = b."selectorId" AND s."companyId" = b."companyId"
+  FROM "balloon" b
+  JOIN "balloonAnchor" s ON s."id" = b."selectorId" AND s."companyId" = b."companyId"
   WHERE b."drawingId" = NEW."drawingId"
     AND b."companyId" = NEW."companyId"
     AND b."label" = NEW."label"
@@ -220,17 +220,17 @@ $$;
 
 CREATE TRIGGER "trg_balloon_unique_label_per_page"
 BEFORE INSERT OR UPDATE OF "selectorId", "drawingId", "label", "deletedAt"
-ON "ballooningBalloon"
+ON "balloon"
 FOR EACH ROW
 WHEN (NEW."deletedAt" IS NULL)
 EXECUTE FUNCTION enforce_unique_balloon_label_per_page();
 
-ALTER TABLE "ballooningDrawing" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "ballooningSelector" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "ballooningBalloon" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "ballooningAnnotation" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "balloonDocument" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "balloonAnchor" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "balloon" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "balloonAnnotation" ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "SELECT" ON "public"."ballooningDrawing"
+CREATE POLICY "SELECT" ON "public"."balloonDocument"
 FOR SELECT USING (
   "companyId" = ANY (
     (
@@ -240,7 +240,7 @@ FOR SELECT USING (
   )
 );
 
-CREATE POLICY "INSERT" ON "public"."ballooningDrawing"
+CREATE POLICY "INSERT" ON "public"."balloonDocument"
 FOR INSERT WITH CHECK (
   "companyId" = ANY (
     (
@@ -250,7 +250,7 @@ FOR INSERT WITH CHECK (
   )
 );
 
-CREATE POLICY "UPDATE" ON "public"."ballooningDrawing"
+CREATE POLICY "UPDATE" ON "public"."balloonDocument"
 FOR UPDATE USING (
   "companyId" = ANY (
     (
@@ -260,7 +260,7 @@ FOR UPDATE USING (
   )
 );
 
-CREATE POLICY "DELETE" ON "public"."ballooningDrawing"
+CREATE POLICY "DELETE" ON "public"."balloonDocument"
 FOR DELETE USING (
   "companyId" = ANY (
     (
@@ -270,7 +270,7 @@ FOR DELETE USING (
   )
 );
 
-CREATE POLICY "SELECT" ON "public"."ballooningSelector"
+CREATE POLICY "SELECT" ON "public"."balloonAnchor"
 FOR SELECT USING (
   "companyId" = ANY (
     (
@@ -280,7 +280,7 @@ FOR SELECT USING (
   )
 );
 
-CREATE POLICY "INSERT" ON "public"."ballooningSelector"
+CREATE POLICY "INSERT" ON "public"."balloonAnchor"
 FOR INSERT WITH CHECK (
   "companyId" = ANY (
     (
@@ -290,7 +290,7 @@ FOR INSERT WITH CHECK (
   )
 );
 
-CREATE POLICY "UPDATE" ON "public"."ballooningSelector"
+CREATE POLICY "UPDATE" ON "public"."balloonAnchor"
 FOR UPDATE USING (
   "companyId" = ANY (
     (
@@ -300,7 +300,7 @@ FOR UPDATE USING (
   )
 );
 
-CREATE POLICY "DELETE" ON "public"."ballooningSelector"
+CREATE POLICY "DELETE" ON "public"."balloonAnchor"
 FOR DELETE USING (
   "companyId" = ANY (
     (
@@ -310,7 +310,7 @@ FOR DELETE USING (
   )
 );
 
-CREATE POLICY "SELECT" ON "public"."ballooningBalloon"
+CREATE POLICY "SELECT" ON "public"."balloon"
 FOR SELECT USING (
   "companyId" = ANY (
     (
@@ -320,7 +320,7 @@ FOR SELECT USING (
   )
 );
 
-CREATE POLICY "INSERT" ON "public"."ballooningBalloon"
+CREATE POLICY "INSERT" ON "public"."balloon"
 FOR INSERT WITH CHECK (
   "companyId" = ANY (
     (
@@ -330,7 +330,7 @@ FOR INSERT WITH CHECK (
   )
 );
 
-CREATE POLICY "UPDATE" ON "public"."ballooningBalloon"
+CREATE POLICY "UPDATE" ON "public"."balloon"
 FOR UPDATE USING (
   "companyId" = ANY (
     (
@@ -340,7 +340,7 @@ FOR UPDATE USING (
   )
 );
 
-CREATE POLICY "DELETE" ON "public"."ballooningBalloon"
+CREATE POLICY "DELETE" ON "public"."balloon"
 FOR DELETE USING (
   "companyId" = ANY (
     (
@@ -350,7 +350,7 @@ FOR DELETE USING (
   )
 );
 
-CREATE POLICY "SELECT" ON "public"."ballooningAnnotation"
+CREATE POLICY "SELECT" ON "public"."balloonAnnotation"
 FOR SELECT USING (
   "companyId" = ANY (
     (
@@ -360,7 +360,7 @@ FOR SELECT USING (
   )
 );
 
-CREATE POLICY "INSERT" ON "public"."ballooningAnnotation"
+CREATE POLICY "INSERT" ON "public"."balloonAnnotation"
 FOR INSERT WITH CHECK (
   "companyId" = ANY (
     (
@@ -370,7 +370,7 @@ FOR INSERT WITH CHECK (
   )
 );
 
-CREATE POLICY "UPDATE" ON "public"."ballooningAnnotation"
+CREATE POLICY "UPDATE" ON "public"."balloonAnnotation"
 FOR UPDATE USING (
   "companyId" = ANY (
     (
@@ -380,7 +380,7 @@ FOR UPDATE USING (
   )
 );
 
-CREATE POLICY "DELETE" ON "public"."ballooningAnnotation"
+CREATE POLICY "DELETE" ON "public"."balloonAnnotation"
 FOR DELETE USING (
   "companyId" = ANY (
     (
