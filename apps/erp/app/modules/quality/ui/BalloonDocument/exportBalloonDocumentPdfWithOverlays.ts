@@ -67,7 +67,7 @@ function clippedBalloonToAnchorLine(
 
 export type ExportFeatureRow = {
   balloonId: string;
-  selectorId: string;
+  balloonAnchorId: string;
   label: string;
   pageNumber: number;
   x: number;
@@ -93,13 +93,13 @@ function drawMarkupOnPageCanvas(
   ch: number,
   pageNumber: number,
   featureRows: ExportFeatureRow[],
-  selectorRects: ExportSelectorRect[]
+  anchorRects: ExportSelectorRect[]
 ) {
   ctx.save();
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
 
-  for (const s of selectorRects) {
+  for (const s of anchorRects) {
     if (s.pageNumber !== pageNumber) continue;
     const sx = (s.x / 100) * cw;
     const sy = (s.y / 100) * ch;
@@ -122,7 +122,7 @@ function drawMarkupOnPageCanvas(
     const anchorY = (b.anchorY / 100) * ch;
     const radius = Math.max(8, Math.min(bw, bh) / 2);
 
-    const linkedSelector = selectorRects.find((s) => s.id === b.selectorId);
+    const linkedSelector = anchorRects.find((s) => s.id === b.balloonAnchorId);
     let linePoints: [number, number, number, number] | null = null;
     if (linkedSelector) {
       const sx = (linkedSelector.x / 100) * cw;
@@ -179,12 +179,12 @@ function drawMarkupOnPageCanvas(
 }
 
 /**
- * Rasterizes each PDF page with selector + balloon markup (matching the Konva overlay) and builds a new PDF.
+ * Rasterizes each PDF page with anchor + balloon markup (matching the Konva overlay) and builds a new PDF.
  */
 export async function buildBalloonDocumentPdfWithOverlaysBytes(args: {
   pdfBytes: ArrayBuffer;
   featureRows: ExportFeatureRow[];
-  selectorRects: ExportSelectorRect[];
+  anchorRects: ExportSelectorRect[];
   /** PDF.js render scale; higher = sharper file */
   scale?: number;
 }): Promise<Uint8Array> {
@@ -209,6 +209,7 @@ export async function buildBalloonDocumentPdfWithOverlaysBytes(args: {
       }
 
       const renderTask = page.render({
+        canvas,
         canvasContext: ctx,
         viewport
       });
@@ -220,7 +221,7 @@ export async function buildBalloonDocumentPdfWithOverlaysBytes(args: {
         ch,
         pageNum,
         args.featureRows,
-        args.selectorRects
+        args.anchorRects
       );
 
       const blob = await new Promise<Blob>((resolve, reject) => {

@@ -50,7 +50,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   const result = await deleteBalloons(client, {
-    drawingId: id,
+    balloonDocumentId: id,
     companyId,
     updatedBy: userId,
     ids

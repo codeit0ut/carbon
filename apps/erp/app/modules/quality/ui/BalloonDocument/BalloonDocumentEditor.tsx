@@ -49,12 +49,12 @@ type DragState = {
   currentY: number;
 } | null;
 type DragKind =
-  | "selector"
+  | "anchor"
   | "zoom"
   | "annotation"
   | "annotationResize"
   | "balloonMove"
-  | "selectorResize"
+  | "anchorResize"
   | null;
 
 type SelectorResizeHandle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
@@ -95,7 +95,7 @@ type BalloonDocumentEditorProps = {
   diagramId: string;
   name: string;
   content: BalloonDocumentContent | null;
-  selectors: Array<Record<string, unknown>>;
+  anchors: Array<Record<string, unknown>>;
   balloons: Array<Record<string, unknown>>;
 };
 
@@ -208,7 +208,9 @@ function getAnnotationDialogPosition(args: {
   return { left, top };
 }
 
-function cursorForSelectorResizeHandle(handle: SelectorResizeHandle): string {
+function cursorForSelectorResizeHandle(
+  handle: SelectorResizeHandle
+): "ew-resize" | "ns-resize" | "nwse-resize" | "nesw-resize" | "pointer" {
   switch (handle) {
     case "n":
     case "s":
@@ -227,7 +229,7 @@ function cursorForSelectorResizeHandle(handle: SelectorResizeHandle): string {
   }
 }
 
-/** Callout / selector stroke — matches reference (orange border, hollow fill). */
+/** Callout / anchor stroke — matches reference (orange border, hollow fill). */
 const CALLOUT_STROKE = "#f97316";
 const CALLOUT_TEXT = "#171717";
 
@@ -276,7 +278,7 @@ function liangBarskySegmentRect(
 }
 
 /**
- * Visible connector from balloon edge → toward anchor, stopping before the selector rect interior.
+ * Visible connector from balloon edge → toward anchor, stopping before the anchor rect interior.
  * u is linear param from B (0) to A (1); balloon occupies u ∈ [0, r/L).
  */
 function clippedBalloonToAnchorLine(
@@ -319,10 +321,10 @@ type SelectorRect = {
   isDirty: boolean;
 };
 
-/** One feature row = one balloon + linked selector; table fields mostly from `data` JSONB. */
+/** One feature row = one balloon + linked anchor; table fields mostly from `data` JSONB. */
 type FeatureRow = {
   balloonId: string;
-  selectorId: string;
+  balloonAnchorId: string;
   label: string;
   pageNumber: number;
   x: number;
@@ -359,8 +361,8 @@ function isTempBalloonId(balloonId: string) {
   return balloonId.startsWith("temp-bln-");
 }
 
-function isTempSelectorId(selectorId: string) {
-  return selectorId.startsWith("temp-");
+function isTempSelectorId(balloonAnchorId: string) {
+  return balloonAnchorId.startsWith("temp-");
 }
 
 function sanitizeFilenameBase(name: string) {
@@ -380,10 +382,7 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function buildBalloonDataForSave(
-  row: FeatureRow,
-  sel: SelectorRect | undefined
-): Record<string, unknown> {
+function buildBalloonDataForSave(row: FeatureRow): Record<string, unknown> {
   const out: Record<string, unknown> = {
     source: "client-save",
     pageNumber: row.pageNumber,
@@ -394,14 +393,6 @@ function buildBalloonDataForSave(
     },
     featureName: row.featureName
   };
-  if (sel) {
-    out.selector = {
-      x: sel.x / 100,
-      y: sel.y / 100,
-      width: sel.width / 100,
-      height: sel.height / 100
-    };
-  }
   if (row.nominalValue.trim()) out.nominalValue = row.nominalValue.trim();
   if (row.tolerancePlus.trim()) out.tolerancePlus = row.tolerancePlus.trim();
   if (row.toleranceMinus.trim()) out.toleranceMinus = row.toleranceMinus.trim();
@@ -446,15 +437,15 @@ function mapFeatureRowFromBalloon(b: Record<string, unknown>): FeatureRow {
     `Feature ${String(b.label ?? "")}`;
 
   const raw = b as Record<string, unknown>;
-  const selectorIdRaw = raw.selectorId ?? raw.selector_id;
+  const balloonAnchorIdRaw = raw.balloonAnchorId ?? raw.balloon_anchor_id;
 
   return {
     balloonId: String(b.id),
-    selectorId:
-      typeof selectorIdRaw === "string"
-        ? selectorIdRaw
-        : selectorIdRaw != null
-          ? String(selectorIdRaw)
+    balloonAnchorId:
+      typeof balloonAnchorIdRaw === "string"
+        ? balloonAnchorIdRaw
+        : balloonAnchorIdRaw != null
+          ? String(balloonAnchorIdRaw)
           : "",
     label: String(b.label ?? ""),
     pageNumber: Number(data.pageNumber ?? 1),
@@ -483,15 +474,15 @@ export default function BalloonDocumentEditor({
   diagramId,
   name,
   content,
-  selectors,
+  anchors,
   balloons
 }: BalloonDocumentEditorProps) {
   const { t } = useLingui();
   const fetcher = useFetcher<{
     success: boolean;
     message?: string;
-    selectorIdMap?: Record<string, string>;
-    selectors?: Array<Record<string, unknown>>;
+    balloonAnchorIdMap?: Record<string, string>;
+    anchors?: Array<Record<string, unknown>>;
     balloons?: Array<Record<string, unknown>>;
   }>();
   const { carbon } = useCarbon();
@@ -501,8 +492,8 @@ export default function BalloonDocumentEditor({
   const [pdfUrl, setPdfUrl] = useState<string>(content?.pdfUrl ?? "");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [selectorRects, setSelectorRects] = useState<SelectorRect[]>(
-    selectors.map(mapSelectorRecord)
+  const [anchorRects, setSelectorRects] = useState<SelectorRect[]>(
+    anchors.map(mapSelectorRecord)
   );
   const [featureRows, setFeatureRows] = useState<FeatureRow[]>(() =>
     balloons.map(mapFeatureRowFromBalloon)
@@ -534,8 +525,8 @@ export default function BalloonDocumentEditor({
     startX: number;
     startY: number;
   } | null>(null);
-  const selectorResizeRef = useRef<{
-    selectorId: string;
+  const anchorResizeRef = useRef<{
+    balloonAnchorId: string;
     handle: SelectorResizeHandle;
     startRect: Pick<SelectorRect, "x" | "y" | "width" | "height">;
   } | null>(null);
@@ -551,7 +542,7 @@ export default function BalloonDocumentEditor({
     null
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
-  /** Only the explicit Save button should show "Diagram saved" — not auto-persist after selector draw. */
+  /** Only the explicit Save button should show "Diagram saved" — not auto-persist after anchor draw. */
   const manualSaveToastRef = useRef(false);
   /** Persisted ids to soft-delete on next Save (cleared after successful reload). */
   const pendingBalloonDeleteIdsRef = useRef(new Set<string>());
@@ -656,7 +647,7 @@ export default function BalloonDocumentEditor({
 
   useEffect(() => {
     if (fetcher.data?.success === true) {
-      setSelectorRects((fetcher.data.selectors ?? []).map(mapSelectorRecord));
+      setSelectorRects((fetcher.data.anchors ?? []).map(mapSelectorRecord));
       setFeatureRows(
         (fetcher.data.balloons ?? []).map(mapFeatureRowFromBalloon)
       );
@@ -803,8 +794,8 @@ export default function BalloonDocumentEditor({
         if (dragKind === "annotationResize") {
           annotationResizeRef.current = null;
         }
-        if (dragKind === "selectorResize") {
-          selectorResizeRef.current = null;
+        if (dragKind === "anchorResize") {
+          anchorResizeRef.current = null;
         }
         setDragKind(null);
         setDrag(null);
@@ -967,7 +958,7 @@ export default function BalloonDocumentEditor({
         return;
       }
 
-      if (dragKind === "selector") {
+      if (dragKind === "anchor") {
         const totalPages = Math.max(1, pdfMetrics?.pageCount ?? numPages ?? 1);
         const pageHeightPct = 100 / totalPages;
         const pageNumber = Math.min(
@@ -985,7 +976,7 @@ export default function BalloonDocumentEditor({
           return;
         }
 
-        const tempSelectorId = `temp-${nanoid()}`;
+        const tempBalloonAnchorId = `temp-${nanoid()}`;
         const tempBalloonId = `temp-bln-${nanoid()}`;
         const anchorX = Math.max(0, Math.min(100, rx + rw / 2));
         const anchorY = Math.max(
@@ -1003,7 +994,7 @@ export default function BalloonDocumentEditor({
         setSelectorRects((prev) => [
           ...prev,
           {
-            id: tempSelectorId,
+            id: tempBalloonAnchorId,
             pageNumber,
             x: rx,
             y: localY,
@@ -1020,7 +1011,7 @@ export default function BalloonDocumentEditor({
             ...prev,
             {
               balloonId: tempBalloonId,
-              selectorId: tempSelectorId,
+              balloonAnchorId: tempBalloonAnchorId,
               label,
               pageNumber,
               x: balloonX,
@@ -1051,8 +1042,8 @@ export default function BalloonDocumentEditor({
         return;
       }
 
-      if (dragKind === "selectorResize") {
-        selectorResizeRef.current = null;
+      if (dragKind === "anchorResize") {
+        anchorResizeRef.current = null;
         setDragKind(null);
         setDrag(null);
         return;
@@ -1201,27 +1192,27 @@ export default function BalloonDocumentEditor({
       const pageStartPct = (pageNumber - 1) * pageHeightPct;
       const localY = ((y - pageStartPct) / pageHeightPct) * 100;
 
-      for (let i = selectorRects.length - 1; i >= 0; i -= 1) {
-        const selector = selectorRects[i];
-        if (selector.pageNumber !== pageNumber) continue;
+      for (let i = anchorRects.length - 1; i >= 0; i -= 1) {
+        const anchor = anchorRects[i];
+        if (anchor.pageNumber !== pageNumber) continue;
         const inRect =
-          x >= selector.x &&
-          x <= selector.x + selector.width &&
-          localY >= selector.y &&
-          localY <= selector.y + selector.height;
-        if (inRect) return selector.id;
+          x >= anchor.x &&
+          x <= anchor.x + anchor.width &&
+          localY >= anchor.y &&
+          localY <= anchor.y + anchor.height;
+        if (inRect) return anchor.id;
       }
 
       return null;
     },
-    [selectorRects, pdfMetrics?.pageCount, numPages]
+    [anchorRects, pdfMetrics?.pageCount, numPages]
   );
 
   const getSelectorResizeHandleAt = useCallback(
     (
       x: number,
       y: number
-    ): { selectorId: string; handle: SelectorResizeHandle } | null => {
+    ): { balloonAnchorId: string; handle: SelectorResizeHandle } | null => {
       const totalPages = Math.max(1, pdfMetrics?.pageCount ?? numPages ?? 1);
       const pageHeightPct = 100 / totalPages;
       const pageNumber = Math.min(
@@ -1242,8 +1233,8 @@ export default function BalloonDocumentEditor({
         (SELECTOR_RESIZE_HANDLE_PX / Math.max(1, pageHeightPx)) * 100
       );
 
-      for (let i = selectorRects.length - 1; i >= 0; i -= 1) {
-        const s = selectorRects[i];
+      for (let i = anchorRects.length - 1; i >= 0; i -= 1) {
+        const s = anchorRects[i];
         if (s.pageNumber !== pageNumber) continue;
 
         const left = s.x;
@@ -1260,20 +1251,23 @@ export default function BalloonDocumentEditor({
         const withinYBand = localY >= top - vPad && localY <= bottom + vPad;
         if (!withinXBand || !withinYBand) continue;
 
-        if (nearTop && nearLeft) return { selectorId: s.id, handle: "nw" };
-        if (nearTop && nearRight) return { selectorId: s.id, handle: "ne" };
-        if (nearBottom && nearLeft) return { selectorId: s.id, handle: "sw" };
-        if (nearBottom && nearRight) return { selectorId: s.id, handle: "se" };
-        if (nearTop) return { selectorId: s.id, handle: "n" };
-        if (nearBottom) return { selectorId: s.id, handle: "s" };
-        if (nearLeft) return { selectorId: s.id, handle: "w" };
-        if (nearRight) return { selectorId: s.id, handle: "e" };
+        if (nearTop && nearLeft) return { balloonAnchorId: s.id, handle: "nw" };
+        if (nearTop && nearRight)
+          return { balloonAnchorId: s.id, handle: "ne" };
+        if (nearBottom && nearLeft)
+          return { balloonAnchorId: s.id, handle: "sw" };
+        if (nearBottom && nearRight)
+          return { balloonAnchorId: s.id, handle: "se" };
+        if (nearTop) return { balloonAnchorId: s.id, handle: "n" };
+        if (nearBottom) return { balloonAnchorId: s.id, handle: "s" };
+        if (nearLeft) return { balloonAnchorId: s.id, handle: "w" };
+        if (nearRight) return { balloonAnchorId: s.id, handle: "e" };
       }
 
       return null;
     },
     [
-      selectorRects,
+      anchorRects,
       pdfMetrics?.pageCount,
       numPages,
       overlayHeight,
@@ -1296,7 +1290,7 @@ export default function BalloonDocumentEditor({
       if (placing) {
         evt.preventDefault();
         const { x, y } = getRelativePosFromStage();
-        setDragKind("selector");
+        setDragKind("anchor");
         setDrag({ startX: x, startY: y, currentX: x, currentY: y });
         return;
       }
@@ -1353,30 +1347,30 @@ export default function BalloonDocumentEditor({
         return;
       }
 
-      const selectorResize = getSelectorResizeHandleAt(x, y);
-      if (selectorResize) {
-        const selector = selectorRects.find(
-          (s) => s.id === selectorResize.selectorId
+      const anchorResize = getSelectorResizeHandleAt(x, y);
+      if (anchorResize) {
+        const anchor = anchorRects.find(
+          (s) => s.id === anchorResize.balloonAnchorId
         );
-        if (selector) {
+        if (anchor) {
           const linkedBalloonId =
-            featureRows.find((row) => row.selectorId === selector.id)
+            featureRows.find((row) => row.balloonAnchorId === anchor.id)
               ?.balloonId ?? null;
-          setSelectedSelectorId(selector.id);
+          setSelectedSelectorId(anchor.id);
           setSelectedBalloonId(linkedBalloonId);
           setSelectedAnnotationId(null);
-          selectorResizeRef.current = {
-            selectorId: selector.id,
-            handle: selectorResize.handle,
+          anchorResizeRef.current = {
+            balloonAnchorId: anchor.id,
+            handle: anchorResize.handle,
             startRect: {
-              x: selector.x,
-              y: selector.y,
-              width: selector.width,
-              height: selector.height
+              x: anchor.x,
+              y: anchor.y,
+              width: anchor.width,
+              height: anchor.height
             }
           };
           evt.preventDefault();
-          setDragKind("selectorResize");
+          setDragKind("anchorResize");
           setDrag({ startX: x, startY: y, currentX: x, currentY: y });
           return;
         }
@@ -1385,8 +1379,8 @@ export default function BalloonDocumentEditor({
       const balloonId = getBalloonIdAt(x, y);
       if (balloonId) {
         const linkedSelectorId =
-          featureRows.find((row) => row.balloonId === balloonId)?.selectorId ??
-          null;
+          featureRows.find((row) => row.balloonId === balloonId)
+            ?.balloonAnchorId ?? null;
         setSelectedBalloonId(balloonId);
         setSelectedAnnotationId(null);
         setSelectedSelectorId(linkedSelectorId);
@@ -1404,12 +1398,12 @@ export default function BalloonDocumentEditor({
         return;
       }
 
-      const selectorId = getSelectorIdAt(x, y);
-      if (selectorId) {
+      const balloonAnchorId = getSelectorIdAt(x, y);
+      if (balloonAnchorId) {
         const linkedBalloonId =
-          featureRows.find((row) => row.selectorId === selectorId)?.balloonId ??
-          null;
-        setSelectedSelectorId(selectorId);
+          featureRows.find((row) => row.balloonAnchorId === balloonAnchorId)
+            ?.balloonId ?? null;
+        setSelectedSelectorId(balloonAnchorId);
         setSelectedAnnotationId(null);
         setSelectedBalloonId(linkedBalloonId);
         return;
@@ -1431,7 +1425,7 @@ export default function BalloonDocumentEditor({
       getSelectorIdAt,
       annotations,
       featureRows,
-      selectorRects
+      anchorRects
     ]
   );
 
@@ -1618,14 +1612,14 @@ export default function BalloonDocumentEditor({
         }
       }
 
-      const selectorResize = getSelectorResizeHandleAt(x, y);
-      if (selectorResize) {
-        return cursorForSelectorResizeHandle(selectorResize.handle);
+      const anchorResize = getSelectorResizeHandleAt(x, y);
+      if (anchorResize) {
+        return cursorForSelectorResizeHandle(anchorResize.handle);
       }
 
-      for (const selector of selectorRects) {
-        if (selector.pageNumber !== pageNumber) continue;
-        if (inRect(selector.x, selector.y, selector.width, selector.height)) {
+      for (const anchor of anchorRects) {
+        if (anchor.pageNumber !== pageNumber) continue;
+        if (inRect(anchor.x, anchor.y, anchor.width, anchor.height)) {
           return "pointer";
         }
       }
@@ -1635,7 +1629,7 @@ export default function BalloonDocumentEditor({
     [
       annotations,
       featureRows,
-      selectorRects,
+      anchorRects,
       pdfMetrics?.pageCount,
       numPages,
       getAnnotationResizeHandleAt,
@@ -1662,12 +1656,9 @@ export default function BalloonDocumentEditor({
             stageContent.style.cursor = cursorForSelectorResizeHandle(
               annotationResizeRef.current.handle
             );
-          } else if (
-            dragKind === "selectorResize" &&
-            selectorResizeRef.current
-          ) {
+          } else if (dragKind === "anchorResize" && anchorResizeRef.current) {
             stageContent.style.cursor = cursorForSelectorResizeHandle(
-              selectorResizeRef.current.handle
+              anchorResizeRef.current.handle
             );
           } else {
             stageContent.style.cursor = "";
@@ -1777,8 +1768,8 @@ export default function BalloonDocumentEditor({
         );
       }
 
-      if (dragKind === "selectorResize" && drag && selectorResizeRef.current) {
-        const activeResize = selectorResizeRef.current;
+      if (dragKind === "anchorResize" && drag && anchorResizeRef.current) {
+        const activeResize = anchorResizeRef.current;
         const deltaX = x - drag.startX;
         const deltaY = y - drag.startY;
         const totalPages = Math.max(1, pdfMetrics?.pageCount ?? numPages ?? 1);
@@ -1835,10 +1826,10 @@ export default function BalloonDocumentEditor({
         };
 
         setSelectorRects((prev) =>
-          prev.map((selector) =>
-            selector.id !== activeResize.selectorId
-              ? selector
-              : { ...selector, ...resizedRect, isDirty: true }
+          prev.map((anchor) =>
+            anchor.id !== activeResize.balloonAnchorId
+              ? anchor
+              : { ...anchor, ...resizedRect, isDirty: true }
           )
         );
 
@@ -1852,7 +1843,7 @@ export default function BalloonDocumentEditor({
         );
         setFeatureRows((prev) =>
           prev.map((row) =>
-            row.selectorId !== activeResize.selectorId
+            row.balloonAnchorId !== activeResize.balloonAnchorId
               ? row
               : {
                   ...row,
@@ -1903,7 +1894,7 @@ export default function BalloonDocumentEditor({
     const formData = new FormData();
     formData.set("name", name);
     if (pdfUrl) formData.set("pdfUrl", pdfUrl);
-    const createSelectors = selectorRects
+    const createSelectors = anchorRects
       .filter((s) => s.isNew)
       .map((s) => ({
         tempId: s.id,
@@ -1913,7 +1904,7 @@ export default function BalloonDocumentEditor({
         width: s.width / 100,
         height: s.height / 100
       }));
-    const updateSelectors = selectorRects
+    const updateSelectors = anchorRects
       .filter((s) => !s.isNew && s.isDirty)
       .map((s) => ({
         id: s.id,
@@ -1924,7 +1915,7 @@ export default function BalloonDocumentEditor({
         height: s.height / 100
       }));
     formData.set(
-      "selectors",
+      "anchors",
       JSON.stringify({
         create: createSelectors,
         update: updateSelectors,
@@ -1935,15 +1926,14 @@ export default function BalloonDocumentEditor({
     const balloonsCreate = featureRows
       .filter((r) => isTempBalloonId(r.balloonId))
       .map((r) => {
-        const sel = selectorRects.find((s) => s.id === r.selectorId);
         return {
-          tempSelectorId: r.selectorId,
+          tempBalloonAnchorId: r.balloonAnchorId,
           label: r.label,
           xCoordinate: r.x / 100,
           yCoordinate: r.y / 100,
           anchorX: r.anchorX / 100,
           anchorY: r.anchorY / 100,
-          data: buildBalloonDataForSave(r, sel),
+          data: buildBalloonDataForSave(r),
           description: r.featureName.trim() || null
         };
       });
@@ -1951,7 +1941,6 @@ export default function BalloonDocumentEditor({
     const balloonsUpdate = featureRows
       .filter((r) => !isTempBalloonId(r.balloonId) && r.balloonDirty)
       .map((r) => {
-        const sel = selectorRects.find((s) => s.id === r.selectorId);
         return {
           id: r.balloonId,
           label: r.label,
@@ -1959,7 +1948,7 @@ export default function BalloonDocumentEditor({
           yCoordinate: r.y / 100,
           anchorX: r.anchorX / 100,
           anchorY: r.anchorY / 100,
-          data: buildBalloonDataForSave(r, sel),
+          data: buildBalloonDataForSave(r),
           description: r.featureName.trim() || null
         };
       });
@@ -1982,15 +1971,7 @@ export default function BalloonDocumentEditor({
       method: "post",
       action: path.to.saveBalloonDocument(diagramId)
     });
-  }, [
-    diagramId,
-    name,
-    pdfUrl,
-    selectorRects,
-    featureRows,
-    pdfMetrics,
-    fetcher
-  ]);
+  }, [diagramId, name, pdfUrl, anchorRects, featureRows, pdfMetrics, fetcher]);
 
   const handlePdfUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2028,14 +2009,14 @@ export default function BalloonDocumentEditor({
         if (!isTempBalloonId(row.balloonId)) {
           pendingBalloonDeleteIdsRef.current.add(row.balloonId);
         }
-        if (row.selectorId && !isTempSelectorId(row.selectorId)) {
-          pendingSelectorDeleteIdsRef.current.add(row.selectorId);
+        if (row.balloonAnchorId && !isTempSelectorId(row.balloonAnchorId)) {
+          pendingSelectorDeleteIdsRef.current.add(row.balloonAnchorId);
         }
       }
       const nextRows = prev.filter((r) => r.balloonId !== balloonId);
       const keptSelectorIds = new Set(
         nextRows
-          .map((r) => r.selectorId)
+          .map((r) => r.balloonAnchorId)
           .filter((id): id is string => id.length > 0)
       );
       setSelectorRects((sels) => {
@@ -2157,7 +2138,7 @@ export default function BalloonDocumentEditor({
       const outBytes = await buildBalloonDocumentPdfWithOverlaysBytes({
         pdfBytes: bytes,
         featureRows,
-        selectorRects,
+        anchorRects,
         scale: 2
       });
       const blobBytes = new Uint8Array(outBytes.byteLength);
@@ -2172,12 +2153,12 @@ export default function BalloonDocumentEditor({
     } finally {
       setPdfExporting(false);
     }
-  }, [hasPdf, pdfFile, pdfUrl, name, featureRows, selectorRects, t]);
+  }, [hasPdf, pdfFile, pdfUrl, name, featureRows, anchorRects, t]);
 
   const previewRect =
     drag &&
     dragKind !== "balloonMove" &&
-    dragKind !== "selectorResize" &&
+    dragKind !== "anchorResize" &&
     dragKind !== "annotationResize"
       ? {
           x: Math.min(drag.startX, drag.currentX),
@@ -2232,7 +2213,7 @@ export default function BalloonDocumentEditor({
             }}
             isDisabled={!hasPdf}
           >
-            {placing ? t`Drag to create selector` : t`Add Selector`}
+            {placing ? t`Drag to create anchor` : t`Add Selector`}
           </Button>
           <Button
             variant={placingAnnotation ? "primary" : "secondary"}
@@ -2373,7 +2354,7 @@ export default function BalloonDocumentEditor({
                   if (dragKind) setDragKind(null);
                   balloonDragRef.current = null;
                   annotationResizeRef.current = null;
-                  selectorResizeRef.current = null;
+                  anchorResizeRef.current = null;
                   const el = konvaContentFromStageRef(stageRef);
                   if (el) el.style.cursor = "";
                 }}
@@ -2426,7 +2407,7 @@ export default function BalloonDocumentEditor({
                       onMouseUp={handleStageMouseUp as never}
                     >
                       <Layer>
-                        {selectorRects.map((s) => {
+                        {anchorRects.map((s) => {
                           const pageHeightPx = overlayHeight / totalPagesStage;
                           const x = (s.x / 100) * renderedWidth;
                           const y =
@@ -2569,8 +2550,8 @@ export default function BalloonDocumentEditor({
                             Math.min(balloonWidthPx, balloonHeightPx) / 2
                           );
                           const isSelected = b.balloonId === selectedBalloonId;
-                          const linkedSelector = selectorRects.find(
-                            (s) => s.id === b.selectorId
+                          const linkedSelector = anchorRects.find(
+                            (s) => s.id === b.balloonAnchorId
                           );
                           let linePoints:
                             | [number, number, number, number]
@@ -2994,7 +2975,7 @@ export default function BalloonDocumentEditor({
                       key={row.balloonId}
                       className={`cursor-default hover:bg-muted/40 ${
                         row.balloonId === selectedBalloonId ||
-                        row.selectorId === selectedSelectorId
+                        row.balloonAnchorId === selectedSelectorId
                           ? "bg-muted/50"
                           : ""
                       }`}
@@ -3095,7 +3076,7 @@ export default function BalloonDocumentEditor({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          aria-label={t`Remove selector and balloon`}
+                          aria-label={t`Remove anchor and balloon`}
                           icon={
                             <LuTrash2 className="h-4 w-4 text-destructive" />
                           }
@@ -3113,7 +3094,7 @@ export default function BalloonDocumentEditor({
                         colSpan={7}
                         className="text-center text-muted-foreground py-4 text-sm leading-snug"
                       >
-                        {t`No features yet. Draw a selector to add a balloon, then use Save to persist. Open a saved diagram to load existing balloons.`}
+                        {t`No features yet. Draw a anchor to add a balloon, then use Save to persist. Open a saved diagram to load existing balloons.`}
                       </Td>
                     </Tr>
                   )}

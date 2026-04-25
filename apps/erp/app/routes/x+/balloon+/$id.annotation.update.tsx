@@ -67,7 +67,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   const result = await updateBalloonAnnotations(client, {
-    drawingId: id,
+    balloonDocumentId: id,
     companyId,
     updatedBy: userId,
     annotations: items

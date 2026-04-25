@@ -64,10 +64,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   const result = await updateBalloonAnchors(client, {
-    drawingId: id,
+    balloonDocumentId: id,
     companyId,
     updatedBy: userId,
-    selectors: items
+    anchors: items
   });
 
   if (result.error) {

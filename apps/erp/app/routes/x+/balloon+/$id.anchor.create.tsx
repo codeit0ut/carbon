@@ -67,10 +67,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   const result = await createBalloonAnchors(client, {
-    drawingId: id,
+    balloonDocumentId: id,
     companyId,
     createdBy: userId,
-    selectors: items
+    anchors: items
   });
 
   if (result.error) {

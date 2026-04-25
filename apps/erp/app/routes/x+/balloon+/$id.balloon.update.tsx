@@ -66,7 +66,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   const result = await updateBalloons(client, {
-    drawingId: id,
+    balloonDocumentId: id,
     companyId,
     updatedBy: userId,
     balloons: items

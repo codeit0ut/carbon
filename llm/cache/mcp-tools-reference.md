@@ -4693,33 +4693,33 @@ delete balloon document
 ### quality_getBalloonAnchors (READ)
 get balloon anchors
 **Parameters:**
-- `drawingId`: string
+- `balloonDocumentId`: string
 
 ### quality_createBalloonAnchors (WRITE)
 create balloon anchors
 **Parameters:**
 - `args`: {
-    drawingId: string;
+    balloonDocumentId: string;
     companyId: string;
     createdBy: string;
-    selectors: z.infer<typeof balloonAnchorCreateItemValidator>[];
+    anchors: z.infer<typeof balloonAnchorCreateItemValidator>[];
   }
 
 ### quality_updateBalloonAnchors (WRITE)
 update balloon anchors
 **Parameters:**
 - `args`: {
-    drawingId: string;
+    balloonDocumentId: string;
     companyId: string;
     updatedBy: string;
-    selectors: z.infer<typeof balloonAnchorUpdateItemValidator>[];
+    anchors: z.infer<typeof balloonAnchorUpdateItemValidator>[];
   }
 
 ### quality_deleteBalloonAnchors (DESTRUCTIVE)
 delete balloon anchors
 **Parameters:**
 - `args`: {
-    drawingId: string;
+    balloonDocumentId: string;
     companyId: string;
     updatedBy: string;
     ids: z.infer<typeof balloonAnchorDeleteValidator>["ids"];
@@ -4728,16 +4728,16 @@ delete balloon anchors
 ### quality_getBalloons (READ)
 get balloons
 **Parameters:**
-- `drawingId`: string
+- `balloonDocumentId`: string
 
 ### quality_createBalloonsForAnchors (WRITE)
 create balloons for anchors
 **Parameters:**
 - `args`: {
-    drawingId: string;
+    balloonDocumentId: string;
     companyId: string;
     createdBy: string;
-    selectors: {
+    anchors: {
       id: string;
       pageNumber: number;
       xCoordinate: number;
@@ -4751,10 +4751,10 @@ create balloons for anchors
 create balloons from payload
 **Parameters:**
 - `args`: {
-    drawingId: string;
+    balloonDocumentId: string;
     companyId: string;
     createdBy: string;
-    selectorIdMap: Record<string, string>;
+    balloonAnchorIdMap: Record<string, string>;
     balloons: z.infer<typeof balloonCreateFromPayloadItemValidator>[];
   }
 
@@ -4762,7 +4762,7 @@ create balloons from payload
 update balloons
 **Parameters:**
 - `args`: {
-    drawingId: string;
+    balloonDocumentId: string;
     companyId: string;
     updatedBy: string;
     balloons: z.infer<typeof balloonUpdateItemValidator>[];
@@ -4772,7 +4772,7 @@ update balloons
 delete balloons
 **Parameters:**
 - `args`: {
-    drawingId: string;
+    balloonDocumentId: string;
     companyId: string;
     updatedBy: string;
     ids: z.infer<typeof balloonDeleteValidator>["ids"];
@@ -4781,13 +4781,13 @@ delete balloons
 ### quality_getBalloonAnnotations (READ)
 get balloon annotations
 **Parameters:**
-- `drawingId`: string
+- `balloonDocumentId`: string
 
 ### quality_createBalloonAnnotations (WRITE)
 create balloon annotations
 **Parameters:**
 - `args`: {
-    drawingId: string;
+    balloonDocumentId: string;
     companyId: string;
     createdBy: string;
     annotations: z.infer<typeof balloonAnnotationCreateItemValidator>[];
@@ -4797,7 +4797,7 @@ create balloon annotations
 update balloon annotations
 **Parameters:**
 - `args`: {
-    drawingId: string;
+    balloonDocumentId: string;
     companyId: string;
     updatedBy: string;
     annotations: z.infer<typeof balloonAnnotationUpdateItemValidator>[];
@@ -4807,7 +4807,7 @@ update balloon annotations
 delete balloon annotations
 **Parameters:**
 - `args`: {
-    drawingId: string;
+    balloonDocumentId: string;
     companyId: string;
     updatedBy: string;
     ids: z.infer<typeof balloonAnnotationDeleteValidator>["ids"];

@@ -69,7 +69,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   const result = await createBalloonAnnotations(client, {
-    drawingId: id,
+    balloonDocumentId: id,
     companyId,
     createdBy: userId,
     annotations: items

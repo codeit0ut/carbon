@@ -5,7 +5,7 @@ import { data } from "react-router";
 import { createBalloonsFromPayload } from "~/modules/quality";
 
 type BalloonCreateItem = {
-  selectorId: string;
+  balloonAnchorId: string;
   label: string;
   xCoordinate: number;
   yCoordinate: number;
@@ -39,7 +39,8 @@ function parseCreateItems(
       (item): item is BalloonCreateItem =>
         typeof item === "object" &&
         item !== null &&
-        typeof (item as { selectorId?: unknown }).selectorId === "string" &&
+        typeof (item as { balloonAnchorId?: unknown }).balloonAnchorId ===
+          "string" &&
         typeof (item as { label?: unknown }).label === "string" &&
         typeof (item as { xCoordinate?: unknown }).xCoordinate === "number" &&
         typeof (item as { yCoordinate?: unknown }).yCoordinate === "number" &&
@@ -73,17 +74,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
     );
   }
 
-  const selectorIdMap = Object.fromEntries(
-    items.map((item) => [item.selectorId, item.selectorId])
+  const balloonAnchorIdMap = Object.fromEntries(
+    items.map((item) => [item.balloonAnchorId, item.balloonAnchorId])
   );
 
   const result = await createBalloonsFromPayload(client, {
-    drawingId: id,
+    balloonDocumentId: id,
     companyId,
     createdBy: userId,
-    selectorIdMap,
+    balloonAnchorIdMap,
     balloons: items.map((item) => ({
-      tempSelectorId: item.selectorId,
+      tempBalloonAnchorId: item.balloonAnchorId,
       label: item.label,
       xCoordinate: item.xCoordinate,
       yCoordinate: item.yCoordinate,

@@ -1,6 +1,6 @@
 -- Balloon document tables
 -- - Uses "balloonDocument" as parent entity
--- - "balloon" derives page from linked selector (no pageNumber column)
+-- - "balloon" derives page from linked anchor (no pageNumber column)
 -- - Enforces tenant consistency with composite (id, companyId) foreign keys
 
 CREATE TABLE "balloonDocument" (
@@ -43,7 +43,7 @@ CREATE TABLE "balloonDocument" (
 
 CREATE TABLE "balloonAnchor" (
   "id" TEXT NOT NULL DEFAULT id('bsl'),
-  "drawingId" TEXT NOT NULL,
+  "balloonDocumentId" TEXT NOT NULL,
   "companyId" TEXT NOT NULL,
   "pageNumber" INTEGER NOT NULL,
   "xCoordinate" DOUBLE PRECISION NOT NULL,
@@ -73,15 +73,14 @@ CREATE TABLE "balloonAnchor" (
   CONSTRAINT "balloonAnchor_updatedBy_fkey"
     FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
   CONSTRAINT "balloonAnchor_drawing_company_fkey"
-    FOREIGN KEY ("drawingId", "companyId")
+    FOREIGN KEY ("balloonDocumentId", "companyId")
     REFERENCES "balloonDocument"("id", "companyId")
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "balloon" (
   "id" TEXT NOT NULL DEFAULT id('bbn'),
-  "selectorId" TEXT NOT NULL,
-  "drawingId" TEXT NOT NULL,
+  "balloonAnchorId" TEXT NOT NULL,
   "companyId" TEXT NOT NULL,
   "label" TEXT NOT NULL,
   "xCoordinate" DOUBLE PRECISION NOT NULL,
@@ -98,7 +97,7 @@ CREATE TABLE "balloon" (
 
   CONSTRAINT "balloon_pkey" PRIMARY KEY ("id", "companyId"),
   CONSTRAINT "balloon_id_unique" UNIQUE ("id"),
-  CONSTRAINT "balloon_selectorId_unique" UNIQUE ("selectorId"),
+  CONSTRAINT "balloon_balloonAnchorId_unique" UNIQUE ("balloonAnchorId"),
   CONSTRAINT "balloon_xCoordinate_check" CHECK ("xCoordinate" >= 0 AND "xCoordinate" <= 1),
   CONSTRAINT "balloon_yCoordinate_check" CHECK ("yCoordinate" >= 0 AND "yCoordinate" <= 1),
   CONSTRAINT "balloon_anchorX_check" CHECK ("anchorX" IS NULL OR ("anchorX" >= 0 AND "anchorX" <= 1)),
@@ -110,19 +109,15 @@ CREATE TABLE "balloon" (
     FOREIGN KEY ("createdBy") REFERENCES "user"("id") ON UPDATE CASCADE,
   CONSTRAINT "balloon_updatedBy_fkey"
     FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "balloon_drawing_company_fkey"
-    FOREIGN KEY ("drawingId", "companyId")
-    REFERENCES "balloonDocument"("id", "companyId")
-    ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "balloon_selector_company_fkey"
-    FOREIGN KEY ("selectorId", "companyId")
+  CONSTRAINT "balloon_anchor_company_fkey"
+    FOREIGN KEY ("balloonAnchorId", "companyId")
     REFERENCES "balloonAnchor"("id", "companyId")
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "balloonAnnotation" (
   "id" TEXT NOT NULL DEFAULT id('ban'),
-  "drawingId" TEXT NOT NULL,
+  "balloonDocumentId" TEXT NOT NULL,
   "companyId" TEXT NOT NULL,
   "pageNumber" INTEGER NOT NULL,
   "xCoordinate" DOUBLE PRECISION NOT NULL,
@@ -150,7 +145,7 @@ CREATE TABLE "balloonAnnotation" (
   CONSTRAINT "balloonAnnotation_updatedBy_fkey"
     FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
   CONSTRAINT "balloonAnnotation_drawing_company_fkey"
-    FOREIGN KEY ("drawingId", "companyId")
+    FOREIGN KEY ("balloonDocumentId", "companyId")
     REFERENCES "balloonDocument"("id", "companyId")
     ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -159,23 +154,22 @@ CREATE INDEX "balloonDocument_companyId_idx" ON "balloonDocument" ("companyId");
 CREATE INDEX "balloonDocument_qualityDocumentId_idx" ON "balloonDocument" ("qualityDocumentId");
 
 CREATE INDEX "balloonAnchor_companyId_idx" ON "balloonAnchor" ("companyId");
-CREATE INDEX "balloonAnchor_drawingId_idx" ON "balloonAnchor" ("drawingId");
-CREATE INDEX "balloonAnchor_drawing_page_idx" ON "balloonAnchor" ("drawingId", "companyId", "pageNumber");
+CREATE INDEX "balloonAnchor_balloonDocumentId_idx" ON "balloonAnchor" ("balloonDocumentId");
+CREATE INDEX "balloonAnchor_drawing_page_idx" ON "balloonAnchor" ("balloonDocumentId", "companyId", "pageNumber");
 CREATE INDEX "balloonAnchor_active_page_idx"
-  ON "balloonAnchor" ("drawingId", "companyId", "pageNumber")
+  ON "balloonAnchor" ("balloonDocumentId", "companyId", "pageNumber")
   WHERE "deletedAt" IS NULL;
 
 CREATE INDEX "balloon_companyId_idx" ON "balloon" ("companyId");
-CREATE INDEX "balloon_drawingId_idx" ON "balloon" ("drawingId");
-CREATE INDEX "balloon_selectorId_idx" ON "balloon" ("selectorId");
-CREATE INDEX "balloon_active_drawing_idx"
-  ON "balloon" ("drawingId", "companyId")
+CREATE INDEX "balloon_balloonAnchorId_idx" ON "balloon" ("balloonAnchorId");
+CREATE INDEX "balloon_active_company_idx"
+  ON "balloon" ("companyId")
   WHERE "deletedAt" IS NULL;
 
 CREATE INDEX "balloonAnnotation_companyId_idx" ON "balloonAnnotation" ("companyId");
-CREATE INDEX "balloonAnnotation_drawing_page_idx" ON "balloonAnnotation" ("drawingId", "companyId", "pageNumber");
+CREATE INDEX "balloonAnnotation_drawing_page_idx" ON "balloonAnnotation" ("balloonDocumentId", "companyId", "pageNumber");
 CREATE INDEX "balloonAnnotation_active_page_idx"
-  ON "balloonAnnotation" ("drawingId", "companyId", "pageNumber")
+  ON "balloonAnnotation" ("balloonDocumentId", "companyId", "pageNumber")
   WHERE "deletedAt" IS NULL;
 
 CREATE OR REPLACE FUNCTION enforce_unique_balloon_label_per_page()
@@ -189,19 +183,20 @@ BEGIN
   SELECT s."pageNumber"
     INTO v_page_number
   FROM "balloonAnchor" s
-  WHERE s."id" = NEW."selectorId"
+  WHERE s."id" = NEW."balloonAnchorId"
     AND s."companyId" = NEW."companyId"
     AND s."deletedAt" IS NULL;
 
   IF v_page_number IS NULL THEN
-    RAISE EXCEPTION 'selector % not found or deleted for company %', NEW."selectorId", NEW."companyId";
+    RAISE EXCEPTION 'anchor % not found or deleted for company %', NEW."balloonAnchorId", NEW."companyId";
   END IF;
 
   SELECT b."id"
     INTO v_conflict_id
   FROM "balloon" b
-  JOIN "balloonAnchor" s ON s."id" = b."selectorId" AND s."companyId" = b."companyId"
-  WHERE b."drawingId" = NEW."drawingId"
+  JOIN "balloonAnchor" s ON s."id" = b."balloonAnchorId" AND s."companyId" = b."companyId"
+  JOIN "balloonAnchor" new_s ON new_s."id" = NEW."balloonAnchorId" AND new_s."companyId" = NEW."companyId"
+  WHERE s."balloonDocumentId" = new_s."balloonDocumentId"
     AND b."companyId" = NEW."companyId"
     AND b."label" = NEW."label"
     AND s."pageNumber" = v_page_number
@@ -211,7 +206,7 @@ BEGIN
   LIMIT 1;
 
   IF v_conflict_id IS NOT NULL THEN
-    RAISE EXCEPTION 'duplicate balloon label "%" on drawing "%" page %', NEW."label", NEW."drawingId", v_page_number;
+    RAISE EXCEPTION 'duplicate balloon label "%" on balloonDocument page %', NEW."label", v_page_number;
   END IF;
 
   RETURN NEW;
@@ -219,7 +214,7 @@ END;
 $$;
 
 CREATE TRIGGER "trg_balloon_unique_label_per_page"
-BEFORE INSERT OR UPDATE OF "selectorId", "drawingId", "label", "deletedAt"
+BEFORE INSERT OR UPDATE OF "balloonAnchorId", "label", "deletedAt"
 ON "balloon"
 FOR EACH ROW
 WHEN (NEW."deletedAt" IS NULL)

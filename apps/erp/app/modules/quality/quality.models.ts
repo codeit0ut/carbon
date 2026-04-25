@@ -139,7 +139,7 @@ export const balloonAnchorDeleteValidator = z.object({
 });
 
 export const balloonCreateFromPayloadItemValidator = z.object({
-  tempSelectorId: z.string().min(1),
+  tempBalloonAnchorId: z.string().min(1),
   label: z.string().min(1),
   xCoordinate: z.number(),
   yCoordinate: z.number(),

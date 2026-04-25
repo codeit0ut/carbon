@@ -1264,12 +1264,12 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
     {
       description: "get balloon anchors",
       inputSchema: {
-      drawingId: z.string(),
+      balloonDocumentId: z.string(),
     },
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBalloonAnchors(ctx.client, params.drawingId);
+      const result = await getBalloonAnchors(ctx.client, params.balloonDocumentId);
       return toMcpResult(result);
     }, "Failed: quality_getBalloonAnchors"),
   );
@@ -1324,12 +1324,12 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
     {
       description: "get balloons",
       inputSchema: {
-      drawingId: z.string(),
+      balloonDocumentId: z.string(),
     },
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBalloons(ctx.client, params.drawingId);
+      const result = await getBalloons(ctx.client, params.balloonDocumentId);
       return toMcpResult(result);
     }, "Failed: quality_getBalloons"),
   );
@@ -1340,8 +1340,8 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
       description: "create balloons for anchors",
       inputSchema: {
       args: z.object({
-    drawingId: z.string(),
-    selectors: z.any(),
+    balloonDocumentId: z.string(),
+    anchors: z.any(),
     id: z.string(),
     pageNumber: z.number(),
     xCoordinate: z.number(),
@@ -1408,12 +1408,12 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
     {
       description: "get balloon annotations",
       inputSchema: {
-      drawingId: z.string(),
+      balloonDocumentId: z.string(),
     },
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBalloonAnnotations(ctx.client, params.drawingId);
+      const result = await getBalloonAnnotations(ctx.client, params.balloonDocumentId);
       return toMcpResult(result);
     }, "Failed: quality_getBalloonAnnotations"),
   );

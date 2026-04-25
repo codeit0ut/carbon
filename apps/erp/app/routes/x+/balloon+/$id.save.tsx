@@ -41,7 +41,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData();
   const name = formData.get("name") as string;
   const pdfUrl = formData.get("pdfUrl") as string | null;
-  const selectorsRaw = formData.get("selectors") as string | null;
+  const anchorsRaw = formData.get("anchors") as string | null;
   const balloonsRaw = formData.get("balloons") as string | null;
   const pageCountRaw = formData.get("pageCount");
   const defaultPageWidthRaw = formData.get("defaultPageWidth");
@@ -86,7 +86,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   type BalloonCreatePayload = {
-    tempSelectorId: string;
+    tempBalloonAnchorId: string;
     label: string;
     xCoordinate: number;
     yCoordinate: number;
@@ -112,7 +112,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   } | null = null;
 
   let balloonDeleteIds: string[] = [];
-  let selectorDeleteIds: string[] = [];
+  let anchorDeleteIds: string[] = [];
 
   if (balloonsRaw) {
     try {
@@ -136,8 +136,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
           if (
             typeof item === "object" &&
             item !== null &&
-            typeof (item as { tempSelectorId?: unknown }).tempSelectorId ===
-              "string" &&
+            typeof (item as { tempBalloonAnchorId?: unknown })
+              .tempBalloonAnchorId === "string" &&
             typeof (item as { label?: unknown }).label === "string" &&
             typeof (item as { xCoordinate?: unknown }).xCoordinate ===
               "number" &&
@@ -149,8 +149,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
             (item as { data?: unknown }).data !== null
           ) {
             create.push({
-              tempSelectorId: (item as { tempSelectorId: string })
-                .tempSelectorId,
+              tempBalloonAnchorId: (item as { tempBalloonAnchorId: string })
+                .tempBalloonAnchorId,
               label: (item as { label: string }).label,
               xCoordinate: (item as { xCoordinate: number }).xCoordinate,
               yCoordinate: (item as { yCoordinate: number }).yCoordinate,
@@ -209,7 +209,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (balloonDeleteIds.length > 0) {
     const delBalloons = await deleteBalloons(client, {
-      drawingId: id,
+      balloonDocumentId: id,
       companyId,
       updatedBy: userId,
       ids: balloonDeleteIds
@@ -222,8 +222,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
   }
 
-  let selectorIdMap: Record<string, string> = {};
-  if (selectorsRaw) {
+  let balloonAnchorIdMap: Record<string, string> = {};
+  if (anchorsRaw) {
     let parsed: {
       create: Array<{
         tempId: string;
@@ -247,14 +247,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
     };
 
     try {
-      const json = JSON.parse(selectorsRaw) as unknown;
+      const json = JSON.parse(anchorsRaw) as unknown;
       if (typeof json !== "object" || json === null) {
-        throw new Error("Invalid selectors payload");
+        throw new Error("Invalid anchors payload");
       }
 
       const selDeleteJson = (json as { delete?: unknown }).delete;
       if (Array.isArray(selDeleteJson)) {
-        selectorDeleteIds = selDeleteJson.filter(
+        anchorDeleteIds = selDeleteJson.filter(
           (x): x is string => typeof x === "string" && x.length > 0
         );
       }
@@ -304,31 +304,31 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
     } catch {
       return data(
-        { success: false, message: "Invalid selectors payload" },
+        { success: false, message: "Invalid anchors payload" },
         { status: 400 }
       );
     }
 
-    if (selectorDeleteIds.length > 0) {
+    if (anchorDeleteIds.length > 0) {
       const delSelectors = await deleteBalloonAnchors(client, {
-        drawingId: id,
+        balloonDocumentId: id,
         companyId,
         updatedBy: userId,
-        ids: selectorDeleteIds
+        ids: anchorDeleteIds
       });
       if (delSelectors.error) {
         return data(
-          { success: false, message: "Failed to delete selectors" },
+          { success: false, message: "Failed to delete anchors" },
           { status: 400 }
         );
       }
     }
 
     const createSelectorsResult = await createBalloonAnchors(client, {
-      drawingId: id,
+      balloonDocumentId: id,
       companyId,
       createdBy: userId,
-      selectors: parsed.create.map((s) => ({
+      anchors: parsed.create.map((s) => ({
         pageNumber: s.pageNumber,
         xCoordinate: s.xCoordinate,
         yCoordinate: s.yCoordinate,
@@ -339,7 +339,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     if (createSelectorsResult.error) {
       return data(
-        { success: false, message: "Failed to create selectors" },
+        { success: false, message: "Failed to create anchors" },
         { status: 400 }
       );
     }
@@ -357,18 +357,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const tempId = parsed.create[i]?.tempId;
       const inserted = insertedSelectors[i];
       if (tempId && inserted?.id) {
-        selectorIdMap[tempId] = inserted.id;
+        balloonAnchorIdMap[tempId] = inserted.id;
       }
     }
 
     if (balloonsParsed?.create?.length) {
       const fromPayload = await createBalloonsFromPayload(client, {
-        drawingId: id,
+        balloonDocumentId: id,
         companyId,
         createdBy: userId,
-        selectorIdMap,
+        balloonAnchorIdMap,
         balloons: balloonsParsed.create.map((b) => ({
-          tempSelectorId: b.tempSelectorId,
+          tempBalloonAnchorId: b.tempBalloonAnchorId,
           label: b.label,
           xCoordinate: b.xCoordinate,
           yCoordinate: b.yCoordinate,
@@ -389,10 +389,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
     } else if (insertedSelectors.length > 0) {
       const createBalloonsResult = await createBalloonsForAnchors(client, {
-        drawingId: id,
+        balloonDocumentId: id,
         companyId,
         createdBy: userId,
-        selectors: insertedSelectors
+        anchors: insertedSelectors
       });
 
       if (createBalloonsResult.error) {
@@ -404,15 +404,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     const updateSelectorsResult = await updateBalloonAnchors(client, {
-      drawingId: id,
+      balloonDocumentId: id,
       companyId,
       updatedBy: userId,
-      selectors: parsed.update
+      anchors: parsed.update
     });
 
     if (updateSelectorsResult.error) {
       return data(
-        { success: false, message: "Failed to update selectors" },
+        { success: false, message: "Failed to update anchors" },
         { status: 400 }
       );
     }
@@ -420,7 +420,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (balloonsParsed?.update?.length) {
     const updateBalloonsResult = await updateBalloons(client, {
-      drawingId: id,
+      balloonDocumentId: id,
       companyId,
       updatedBy: userId,
       balloons: balloonsParsed.update
@@ -434,12 +434,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
   }
 
-  const [selectorsResult, balloonsResult] = await Promise.all([
+  const [anchorsResult, balloonsResult] = await Promise.all([
     getBalloonAnchors(client, id),
     getBalloons(client, id)
   ]);
 
-  if (selectorsResult.error || balloonsResult.error) {
+  if (anchorsResult.error || balloonsResult.error) {
     return data(
       {
         success: false,
@@ -451,8 +451,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   return {
     success: true,
-    selectorIdMap,
-    selectors: selectorsResult.data ?? [],
+    balloonAnchorIdMap,
+    anchors: anchorsResult.data ?? [],
     balloons: balloonsResult.data ?? []
   };
 }

@@ -46,7 +46,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   if (!id) throw new Error("Could not find id");
 
   const serviceRole = await getCarbonServiceRole();
-  const [diagram, selectors, balloons] = await Promise.all([
+  const [diagram, anchors, balloons] = await Promise.all([
     getBalloonDocument(serviceRole, id),
     getBalloonAnchors(serviceRole, id),
     getBalloons(serviceRole, id)
@@ -72,13 +72,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   return {
     diagram: diagram.data,
-    selectors: selectors.data ?? [],
+    anchors: anchors.data ?? [],
     balloons: balloons.data ?? []
   };
 }
 
 export default function BalloonDetailRoute() {
-  const { diagram, selectors, balloons } = useLoaderData<typeof loader>();
+  const { diagram, anchors, balloons } = useLoaderData<typeof loader>();
   const content = diagram.content as BalloonDocumentContent | null;
 
   return (
@@ -102,7 +102,7 @@ export default function BalloonDetailRoute() {
               diagramId={diagram.id}
               name={diagram.name}
               content={content}
-              selectors={selectors}
+              anchors={anchors}
               balloons={balloons}
             />
           </Suspense>
