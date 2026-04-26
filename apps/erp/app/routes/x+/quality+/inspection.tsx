@@ -3,16 +3,15 @@ import { VStack } from "@carbon/react";
 import { msg } from "@lingui/core/macro";
 import type { LoaderFunctionArgs } from "react-router";
 import { Outlet, useLoaderData } from "react-router";
-import { getBallooningDiagrams } from "~/modules/quality";
-import { BallooningTable } from "~/modules/quality/ui/Ballooning";
+import { getInspectionDocuments } from "~/modules/quality";
+import { InspectionDocumentTable } from "~/modules/quality/ui/InspectionDocument";
 import type { Handle } from "~/utils/handle";
 import { path } from "~/utils/path";
 import { getGenericQueryFilters } from "~/utils/query";
 
 export const handle: Handle = {
-  breadcrumb: msg`Ballooning Diagrams`,
-  to: path.to.ballooningDiagrams,
-  module: "quality"
+  breadcrumb: msg`Inspection Documents`,
+  to: path.to.inspectionDocuments
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -27,7 +26,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { limit, offset, sorts, filters } =
     getGenericQueryFilters(searchParams);
 
-  const diagrams = await getBallooningDiagrams(client, companyId, {
+  const diagrams = await getInspectionDocuments(client, companyId, {
     search,
     limit,
     offset,
@@ -41,12 +40,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   };
 }
 
-export default function BallooningRoute() {
+export default function InspectionDocumentsRoute() {
   const { diagrams, count } = useLoaderData<typeof loader>();
 
   return (
     <VStack spacing={0} className="h-full">
-      <BallooningTable data={diagrams} count={count} />
+      <InspectionDocumentTable data={diagrams} count={count} />
       <Outlet />
     </VStack>
   );
