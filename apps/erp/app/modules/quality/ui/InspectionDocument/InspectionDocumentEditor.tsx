@@ -4,22 +4,17 @@ import {
   Heading,
   HStack,
   IconButton,
-  Table,
-  Tbody,
-  Td,
-  Th,
-  Thead,
-  Tr,
   toast,
   VStack
 } from "@carbon/react";
 import { useLingui } from "@lingui/react/macro";
 import { nanoid } from "nanoid";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from "react-konva";
 import { Document, Page } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   LuChevronDown,
   LuChevronUp,
@@ -33,6 +28,8 @@ import {
   LuUpload
 } from "react-icons/lu";
 import { useFetcher } from "react-router";
+import { EditableText } from "~/components/Editable";
+import Grid from "~/components/Grid";
 import { useUser } from "~/hooks";
 import type { InspectionDocumentContent } from "~/modules/quality/types";
 import { path } from "~/utils/path";
@@ -2030,6 +2027,72 @@ export default function InspectionDocumentEditor({
     []
   );
 
+  const featureMutation = useCallback(
+    async (accessorKey: string, newValue: string, row: FeatureRow) => {
+      updateFeatureField(
+        row.balloonId,
+        accessorKey as
+          | "label"
+          | "featureName"
+          | "nominalValue"
+          | "tolerancePlus"
+          | "toleranceMinus"
+          | "units",
+        newValue
+      );
+      return {
+        data: null,
+        error: null,
+        count: null,
+        status: 200,
+        statusText: "OK"
+      } as const;
+    },
+    [updateFeatureField]
+  );
+
+  const featureEditableComponents = useMemo(
+    () => ({
+      label: EditableText(featureMutation),
+      featureName: EditableText(featureMutation),
+      nominalValue: EditableText(featureMutation),
+      tolerancePlus: EditableText(featureMutation),
+      toleranceMinus: EditableText(featureMutation),
+      units: EditableText(featureMutation)
+    }),
+    [featureMutation]
+  );
+
+  const featureColumns = useMemo<ColumnDef<FeatureRow>[]>(
+    () => [
+      { accessorKey: "label", header: t`Balloon #`, size: 80 },
+      { accessorKey: "featureName", header: t`Feature` },
+      { accessorKey: "nominalValue", header: t`Nom`, size: 112 },
+      { accessorKey: "tolerancePlus", header: t`Tol+`, size: 112 },
+      { accessorKey: "toleranceMinus", header: t`Tol-`, size: 112 },
+      { accessorKey: "units", header: t`Units`, size: 96 },
+      {
+        id: "actions",
+        header: t`Actions`,
+        size: 28,
+        cell: ({ row }) => (
+          <IconButton
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label={t`Remove anchor and balloon`}
+            icon={<LuTrash2 className="h-4 w-4 text-destructive" />}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteFeature(row.original.balloonId);
+            }}
+          />
+        )
+      }
+    ],
+    [handleDeleteFeature, t]
+  );
+
   const handleDownloadPdfWithBalloons = useCallback(async () => {
     if (!hasPdf) {
       toast.error(t`Upload a PDF first`);
@@ -2831,149 +2894,12 @@ export default function InspectionDocumentEditor({
                   : "overflow-hidden"
               }
             >
-              <Table>
-                <Thead>
-                  <Tr>
-                    <Th className="w-20">{t`Balloon #`}</Th>
-                    <Th>{t`Feature`}</Th>
-                    <Th className="w-28">{t`Nom`}</Th>
-                    <Th className="w-28">{t`Tol+`}</Th>
-                    <Th className="w-28">{t`Tol-`}</Th>
-                    <Th className="w-24">{t`Units`}</Th>
-                    <Th className="w-14 text-right">{t` `}</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {featureRows.map((row) => (
-                    <Tr
-                      key={row.balloonId}
-                      className={`cursor-default hover:bg-muted/40 ${
-                        row.balloonId === selectedBalloonId ||
-                        row.balloonAnchorId === selectedSelectorId
-                          ? "bg-muted/50"
-                          : ""
-                      }`}
-                    >
-                      <Td className="align-middle">
-                        <input
-                          type="text"
-                          className="h-9 w-full min-w-[2.5rem] rounded-md border border-border bg-background px-2 text-sm font-medium tabular-nums"
-                          value={row.label}
-                          onChange={(e) =>
-                            updateFeatureField(
-                              row.balloonId,
-                              "label",
-                              e.target.value
-                            )
-                          }
-                          aria-label={t`Balloon number`}
-                        />
-                      </Td>
-                      <Td className="align-middle">
-                        <input
-                          type="text"
-                          className="h-9 w-full max-w-md rounded-md border border-border bg-background px-3 text-sm"
-                          value={row.featureName}
-                          placeholder={t`Feature name`}
-                          onChange={(e) =>
-                            updateFeatureField(
-                              row.balloonId,
-                              "featureName",
-                              e.target.value
-                            )
-                          }
-                          aria-label={t`Feature`}
-                        />
-                      </Td>
-                      <Td className="align-middle">
-                        <input
-                          type="text"
-                          className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm tabular-nums"
-                          value={row.nominalValue}
-                          onChange={(e) =>
-                            updateFeatureField(
-                              row.balloonId,
-                              "nominalValue",
-                              e.target.value
-                            )
-                          }
-                          aria-label={t`Nominal`}
-                        />
-                      </Td>
-                      <Td className="align-middle">
-                        <input
-                          type="text"
-                          className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm tabular-nums"
-                          value={row.tolerancePlus}
-                          onChange={(e) =>
-                            updateFeatureField(
-                              row.balloonId,
-                              "tolerancePlus",
-                              e.target.value
-                            )
-                          }
-                          aria-label={t`Tolerance plus`}
-                        />
-                      </Td>
-                      <Td className="align-middle">
-                        <input
-                          type="text"
-                          className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm tabular-nums"
-                          value={row.toleranceMinus}
-                          onChange={(e) =>
-                            updateFeatureField(
-                              row.balloonId,
-                              "toleranceMinus",
-                              e.target.value
-                            )
-                          }
-                          aria-label={t`Tolerance minus`}
-                        />
-                      </Td>
-                      <Td className="align-middle">
-                        <input
-                          type="text"
-                          className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                          value={row.units}
-                          onChange={(e) =>
-                            updateFeatureField(
-                              row.balloonId,
-                              "units",
-                              e.target.value
-                            )
-                          }
-                          aria-label={t`Units`}
-                        />
-                      </Td>
-                      <Td className="align-middle text-right">
-                        <IconButton
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          aria-label={t`Remove anchor and balloon`}
-                          icon={
-                            <LuTrash2 className="h-4 w-4 text-destructive" />
-                          }
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteFeature(row.balloonId);
-                          }}
-                        />
-                      </Td>
-                    </Tr>
-                  ))}
-                  {featureRows.length === 0 && (
-                    <Tr>
-                      <Td
-                        colSpan={7}
-                        className="text-center text-muted-foreground py-4 text-sm leading-snug"
-                      >
-                        {t`No features yet. Draw a anchor to add a balloon, then use Save to persist. Open a saved diagram to load existing balloons.`}
-                      </Td>
-                    </Tr>
-                  )}
-                </Tbody>
-              </Table>
+              <Grid<FeatureRow>
+                data={featureRows}
+                columns={featureColumns}
+                editableComponents={featureEditableComponents}
+                contained={false}
+              />
             </div>
           </div>
         </div>
