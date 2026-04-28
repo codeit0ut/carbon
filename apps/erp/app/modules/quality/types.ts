@@ -1,9 +1,6 @@
 import type { Database } from "@carbon/database";
 import type { z } from "zod";
 import type {
-  balloonAnchorCreateItemValidator,
-  balloonAnchorDeleteValidator,
-  balloonAnchorUpdateItemValidator,
   balloonAnnotationCreateItemValidator,
   balloonAnnotationDeleteValidator,
   balloonAnnotationUpdateItemValidator,
@@ -13,14 +10,13 @@ import type {
   nonConformanceAssociationType
 } from "./quality.models";
 import type {
-  getBalloonAnchors,
   getBalloonAnnotations,
-  getBalloonDocument,
-  getBalloonDocuments,
   getBalloons,
   getGaugeCalibrationRecords,
   getGauges,
   getGaugeTypes,
+  getInspectionDocument,
+  getInspectionDocuments,
   getIssueActionTasks,
   getIssueApprovalTasks,
   getIssueAssociations,
@@ -38,17 +34,13 @@ import type {
   getRisks
 } from "./quality.service";
 
-export type BalloonDocument = NonNullable<
-  Awaited<ReturnType<typeof getBalloonDocuments>>["data"]
+export type InspectionDocument = NonNullable<
+  Awaited<ReturnType<typeof getInspectionDocuments>>["data"]
 >[number];
 
-export type BalloonDocumentDetail = NonNullable<
-  Awaited<ReturnType<typeof getBalloonDocument>>["data"]
+export type InspectionDocumentDetail = NonNullable<
+  Awaited<ReturnType<typeof getInspectionDocument>>["data"]
 >;
-
-export type BalloonAnchor = NonNullable<
-  Awaited<ReturnType<typeof getBalloonAnchors>>["data"]
->[number];
 
 export type Balloon = NonNullable<
   Awaited<ReturnType<typeof getBalloons>>["data"]
@@ -83,23 +75,13 @@ export type BalloonFeature = {
   sortOrder: number;
 };
 
-export type BalloonDocumentContent = {
+export type InspectionDocumentContent = {
   drawingNumber: string | null;
   revision: string | null;
   pdfUrl: string | null;
   annotations: BalloonAnnotation[];
   features: BalloonFeature[];
 };
-
-export type BalloonAnchorCreateItem = z.infer<
-  typeof balloonAnchorCreateItemValidator
->;
-export type BalloonAnchorUpdateItem = z.infer<
-  typeof balloonAnchorUpdateItemValidator
->;
-export type BalloonAnchorDeleteIds = z.infer<
-  typeof balloonAnchorDeleteValidator
->["ids"];
 
 export type BalloonCreateFromPayloadItem = z.infer<
   typeof balloonCreateFromPayloadItemValidator

@@ -4,9 +4,9 @@ import { flash } from "@carbon/auth/session.server";
 import { validationError, validator } from "@carbon/form";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { redirect, useNavigate } from "react-router";
-import { upsertBalloonDocument } from "~/modules/quality";
-import { balloonDocumentValidator } from "~/modules/quality/quality.models";
-import { BalloonDocumentForm } from "~/modules/quality/ui/BalloonDocument";
+import { upsertInspectionDocument } from "~/modules/quality";
+import { inspectionDocumentValidator } from "~/modules/quality/quality.models";
+import { InspectionDocumentForm } from "~/modules/quality/ui/InspectionDocument";
 import { path } from "~/utils/path";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -21,7 +21,7 @@ export async function action({ request }: ActionFunctionArgs) {
   });
 
   const formData = await request.formData();
-  const validation = await validator(balloonDocumentValidator).validate(
+  const validation = await validator(inspectionDocumentValidator).validate(
     formData
   );
 
@@ -29,7 +29,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return validationError(validation.error);
   }
 
-  const result = await upsertBalloonDocument(client, {
+  const result = await upsertInspectionDocument(client, {
     ...validation.data,
     companyId,
     createdBy: userId
@@ -37,7 +37,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (result.error || !result.data?.id) {
     throw redirect(
-      path.to.balloonDocuments,
+      path.to.inspectionDocuments,
       await flash(
         request,
         error(result.error, "Failed to create balloon document")
@@ -46,7 +46,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   throw redirect(
-    path.to.balloonDocument(result.data.id),
+    path.to.inspectionDocument(result.data.id),
     await flash(request, success("Balloon document created"))
   );
 }
@@ -55,8 +55,8 @@ export default function BalloonNewRoute() {
   const navigate = useNavigate();
 
   return (
-    <BalloonDocumentForm
-      initialValues={{ name: "", drawingNumber: "", revision: "" }}
+    <InspectionDocumentForm
+      initialValues={{ name: "", partId: "", drawingNumber: "", revision: "" }}
       onClose={() => navigate(-1)}
     />
   );

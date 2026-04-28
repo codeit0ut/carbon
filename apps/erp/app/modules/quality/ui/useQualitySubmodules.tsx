@@ -66,8 +66,8 @@ export default function useQualitySubmodules() {
       name: t`Inspection`,
       routes: [
         {
-          name: t`Balloon Documents`,
-          to: path.to.balloonDocuments,
+          name: t`Inspection Documents`,
+          to: path.to.inspectionDocuments,
           icon: <LuTarget />
         }
       ]

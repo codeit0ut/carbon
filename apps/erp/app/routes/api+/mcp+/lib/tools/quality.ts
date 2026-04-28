@@ -78,14 +78,10 @@ import {
   upsertQualityDocument,
   upsertQualityDocumentStep,
   upsertRisk,
-  getBalloonDocuments,
-  getBalloonDocument,
-  upsertBalloonDocument,
-  deleteBalloonDocument,
-  getBalloonAnchors,
-  createBalloonAnchors,
-  updateBalloonAnchors,
-  deleteBalloonAnchors,
+  getInspectionDocuments,
+  getInspectionDocument,
+  upsertInspectionDocument,
+  deleteInspectionDocument,
   getBalloons,
   createBalloonsForAnchors,
   createBalloonsFromPayload,
@@ -107,10 +103,7 @@ import {
   qualityDocumentValidator,
   qualityDocumentStepValidator,
   riskRegisterValidator,
-  balloonDocumentValidator,
-  balloonAnchorCreateItemValidator,
-  balloonAnchorUpdateItemValidator,
-  balloonAnchorDeleteValidator,
+  inspectionDocumentValidator,
   balloonCreateFromPayloadItemValidator,
   balloonUpdateItemValidator,
   balloonDeleteValidator,
@@ -1197,9 +1190,9 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
   );
 
   server.registerTool(
-    "quality_getBalloonDocuments",
+    "quality_getInspectionDocuments",
     {
-      description: "get balloon documents",
+      description: "get inspection documents",
       inputSchema: {
       args: z.object({
     limit: z.number().int().default(100),
@@ -1209,114 +1202,54 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBalloonDocuments(ctx.client, ctx.companyId, params.args);
+      const result = await getInspectionDocuments(ctx.client, ctx.companyId, params.args);
       return toMcpResult(result);
-    }, "Failed: quality_getBalloonDocuments"),
+    }, "Failed: quality_getInspectionDocuments"),
   );
 
   server.registerTool(
-    "quality_getBalloonDocument",
+    "quality_getInspectionDocument",
     {
-      description: "get balloon document",
+      description: "get inspection document",
       inputSchema: {
       id: z.string(),
     },
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBalloonDocument(ctx.client, params.id);
+      const result = await getInspectionDocument(ctx.client, params.id);
       return toMcpResult(result);
-    }, "Failed: quality_getBalloonDocument"),
+    }, "Failed: quality_getInspectionDocument"),
   );
 
   server.registerTool(
-    "quality_upsertBalloonDocument",
+    "quality_upsertInspectionDocument",
     {
-      description: "upsert balloon document",
+      description: "upsert inspection document",
       inputSchema: {
-      diagram: balloonDocumentValidator,
+      diagram: inspectionDocumentValidator,
     },
       annotations: WRITE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await upsertBalloonDocument(ctx.client, { ...params.diagram, companyId: ctx.companyId, createdBy: ctx.userId, updatedBy: ctx.userId });
+      const result = await upsertInspectionDocument(ctx.client, { ...params.diagram, companyId: ctx.companyId, createdBy: ctx.userId, updatedBy: ctx.userId });
       return toMcpResult(result);
-    }, "Failed: quality_upsertBalloonDocument"),
+    }, "Failed: quality_upsertInspectionDocument"),
   );
 
   server.registerTool(
-    "quality_deleteBalloonDocument",
+    "quality_deleteInspectionDocument",
     {
-      description: "delete balloon document",
+      description: "delete inspection document",
       inputSchema: {
       id: z.string(),
     },
       annotations: DESTRUCTIVE_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await deleteBalloonDocument(ctx.client, params.id);
+      const result = await deleteInspectionDocument(ctx.client, params.id);
       return toMcpResult(result);
-    }, "Failed: quality_deleteBalloonDocument"),
-  );
-
-  server.registerTool(
-    "quality_getBalloonAnchors",
-    {
-      description: "get balloon anchors",
-      inputSchema: {
-      balloonDocumentId: z.string(),
-    },
-      annotations: READ_ONLY_ANNOTATIONS,
-    },
-    withErrorHandling(async (params) => {
-      const result = await getBalloonAnchors(ctx.client, params.balloonDocumentId);
-      return toMcpResult(result);
-    }, "Failed: quality_getBalloonAnchors"),
-  );
-
-  server.registerTool(
-    "quality_createBalloonAnchors",
-    {
-      description: "create balloon anchors",
-      inputSchema: {
-      args: balloonAnchorCreateItemValidator,
-    },
-      annotations: WRITE_ANNOTATIONS,
-    },
-    withErrorHandling(async (params) => {
-      const result = await createBalloonAnchors(ctx.client, { ...params.args, companyId: ctx.companyId, createdBy: ctx.userId });
-      return toMcpResult(result);
-    }, "Failed: quality_createBalloonAnchors"),
-  );
-
-  server.registerTool(
-    "quality_updateBalloonAnchors",
-    {
-      description: "update balloon anchors",
-      inputSchema: {
-      args: balloonAnchorUpdateItemValidator,
-    },
-      annotations: WRITE_ANNOTATIONS,
-    },
-    withErrorHandling(async (params) => {
-      const result = await updateBalloonAnchors(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
-      return toMcpResult(result);
-    }, "Failed: quality_updateBalloonAnchors"),
-  );
-
-  server.registerTool(
-    "quality_deleteBalloonAnchors",
-    {
-      description: "delete balloon anchors",
-      inputSchema: {
-      args: balloonAnchorDeleteValidator,
-    },
-      annotations: DESTRUCTIVE_ANNOTATIONS,
-    },
-    withErrorHandling(async (params) => {
-      const result = await deleteBalloonAnchors(ctx.client, { ...params.args, companyId: ctx.companyId, updatedBy: ctx.userId });
-      return toMcpResult(result);
-    }, "Failed: quality_deleteBalloonAnchors"),
+    }, "Failed: quality_deleteInspectionDocument"),
   );
 
   server.registerTool(
@@ -1324,12 +1257,12 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
     {
       description: "get balloons",
       inputSchema: {
-      balloonDocumentId: z.string(),
+      inspectionDocumentId: z.string(),
     },
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBalloons(ctx.client, params.balloonDocumentId);
+      const result = await getBalloons(ctx.client, params.inspectionDocumentId);
       return toMcpResult(result);
     }, "Failed: quality_getBalloons"),
   );
@@ -1340,14 +1273,13 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
       description: "create balloons for anchors",
       inputSchema: {
       args: z.object({
-    balloonDocumentId: z.string(),
+    inspectionDocumentId: z.string(),
     anchors: z.any(),
-    id: z.string(),
     pageNumber: z.number(),
-    xCoordinate: z.number(),
-    yCoordinate: z.number(),
-    width: z.number(),
-    height: z.number()
+    regionX: z.number(),
+    regionY: z.number(),
+    regionWidth: z.number(),
+    regionHeight: z.number()
   }),
     },
       annotations: WRITE_ANNOTATIONS,
@@ -1408,12 +1340,12 @@ export const registerQualityTools: RegisterTools = (server, ctx) => {
     {
       description: "get balloon annotations",
       inputSchema: {
-      balloonDocumentId: z.string(),
+      inspectionDocumentId: z.string(),
     },
       annotations: READ_ONLY_ANNOTATIONS,
     },
     withErrorHandling(async (params) => {
-      const result = await getBalloonAnnotations(ctx.client, params.balloonDocumentId);
+      const result = await getBalloonAnnotations(ctx.client, params.inspectionDocumentId);
       return toMcpResult(result);
     }, "Failed: quality_getBalloonAnnotations"),
   );

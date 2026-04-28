@@ -1,12 +1,12 @@
--- Balloon document tables
--- - Uses "balloonDocument" as parent entity
--- - "balloon" derives page from linked anchor (no pageNumber column)
+-- Inspection document tables
+-- - Uses "inspectionDocument" as parent entity
+-- - "balloon" stores both the selection region and the circle label in one row
 -- - Enforces tenant consistency with composite (id, companyId) foreign keys
 
-CREATE TABLE "balloonDocument" (
-  "id" TEXT NOT NULL DEFAULT id('bdr'),
+CREATE TABLE "inspectionDocument" (
+  "id" TEXT NOT NULL DEFAULT id('idc'),
   "companyId" TEXT NOT NULL,
-  "qualityDocumentId" TEXT NOT NULL,
+  "partId" TEXT NOT NULL,
   "drawingNumber" TEXT,
   "revision" TEXT,
   "version" INTEGER NOT NULL DEFAULT 0,
@@ -22,71 +22,37 @@ CREATE TABLE "balloonDocument" (
   "updatedBy" TEXT,
   "updatedAt" TIMESTAMP WITH TIME ZONE,
 
-  CONSTRAINT "balloonDocument_pkey" PRIMARY KEY ("id", "companyId"),
-  CONSTRAINT "balloonDocument_id_unique" UNIQUE ("id"),
-  CONSTRAINT "balloonDocument_version_check" CHECK ("version" >= 0),
-  CONSTRAINT "balloonDocument_pageCount_check" CHECK ("pageCount" > 0),
-  CONSTRAINT "balloonDocument_defaultPageWidth_check" CHECK ("defaultPageWidth" > 0),
-  CONSTRAINT "balloonDocument_defaultPageHeight_check" CHECK ("defaultPageHeight" > 0),
+  CONSTRAINT "inspectionDocument_pkey" PRIMARY KEY ("id", "companyId"),
+  CONSTRAINT "inspectionDocument_id_unique" UNIQUE ("id"),
+  CONSTRAINT "inspectionDocument_version_check" CHECK ("version" >= 0),
+  CONSTRAINT "inspectionDocument_pageCount_check" CHECK ("pageCount" > 0),
+  CONSTRAINT "inspectionDocument_defaultPageWidth_check" CHECK ("defaultPageWidth" > 0),
+  CONSTRAINT "inspectionDocument_defaultPageHeight_check" CHECK ("defaultPageHeight" > 0),
 
-  CONSTRAINT "balloonDocument_companyId_fkey"
+  CONSTRAINT "inspectionDocument_companyId_fkey"
     FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "balloonDocument_qualityDocumentId_fkey"
-    FOREIGN KEY ("qualityDocumentId") REFERENCES "qualityDocument"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT "balloonDocument_uploadedBy_fkey"
+  CONSTRAINT "inspectionDocument_partId_fkey"
+    FOREIGN KEY ("partId") REFERENCES "item"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT "inspectionDocument_uploadedBy_fkey"
     FOREIGN KEY ("uploadedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "balloonDocument_createdBy_fkey"
+  CONSTRAINT "inspectionDocument_createdBy_fkey"
     FOREIGN KEY ("createdBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "balloonDocument_updatedBy_fkey"
+  CONSTRAINT "inspectionDocument_updatedBy_fkey"
     FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE
-);
-
-CREATE TABLE "balloonAnchor" (
-  "id" TEXT NOT NULL DEFAULT id('bsl'),
-  "balloonDocumentId" TEXT NOT NULL,
-  "companyId" TEXT NOT NULL,
-  "pageNumber" INTEGER NOT NULL,
-  "xCoordinate" DOUBLE PRECISION NOT NULL,
-  "yCoordinate" DOUBLE PRECISION NOT NULL,
-  "width" DOUBLE PRECISION NOT NULL,
-  "height" DOUBLE PRECISION NOT NULL,
-  "deletedAt" TIMESTAMP WITH TIME ZONE,
-  "createdBy" TEXT NOT NULL,
-  "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  "updatedBy" TEXT,
-  "updatedAt" TIMESTAMP WITH TIME ZONE,
-
-  CONSTRAINT "balloonAnchor_pkey" PRIMARY KEY ("id", "companyId"),
-  CONSTRAINT "balloonAnchor_id_unique" UNIQUE ("id"),
-  CONSTRAINT "balloonAnchor_pageNumber_check" CHECK ("pageNumber" > 0),
-  CONSTRAINT "balloonAnchor_xCoordinate_check" CHECK ("xCoordinate" >= 0 AND "xCoordinate" <= 1),
-  CONSTRAINT "balloonAnchor_yCoordinate_check" CHECK ("yCoordinate" >= 0 AND "yCoordinate" <= 1),
-  CONSTRAINT "balloonAnchor_width_check" CHECK ("width" > 0 AND "width" <= 1),
-  CONSTRAINT "balloonAnchor_height_check" CHECK ("height" > 0 AND "height" <= 1),
-  CONSTRAINT "balloonAnchor_xw_bounds_check" CHECK ("xCoordinate" + "width" <= 1),
-  CONSTRAINT "balloonAnchor_yh_bounds_check" CHECK ("yCoordinate" + "height" <= 1),
-
-  CONSTRAINT "balloonAnchor_companyId_fkey"
-    FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "balloonAnchor_createdBy_fkey"
-    FOREIGN KEY ("createdBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "balloonAnchor_updatedBy_fkey"
-    FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "balloonAnchor_drawing_company_fkey"
-    FOREIGN KEY ("balloonDocumentId", "companyId")
-    REFERENCES "balloonDocument"("id", "companyId")
-    ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE "balloon" (
   "id" TEXT NOT NULL DEFAULT id('bbn'),
-  "balloonAnchorId" TEXT NOT NULL,
+  "inspectionDocumentId" TEXT NOT NULL,
   "companyId" TEXT NOT NULL,
+  "pageNumber" INTEGER NOT NULL,
+  "regionX" DOUBLE PRECISION NOT NULL,
+  "regionY" DOUBLE PRECISION NOT NULL,
+  "regionWidth" DOUBLE PRECISION NOT NULL,
+  "regionHeight" DOUBLE PRECISION NOT NULL,
   "label" TEXT NOT NULL,
   "xCoordinate" DOUBLE PRECISION NOT NULL,
   "yCoordinate" DOUBLE PRECISION NOT NULL,
-  "anchorX" DOUBLE PRECISION,
-  "anchorY" DOUBLE PRECISION,
   "description" TEXT,
   "data" JSONB,
   "deletedAt" TIMESTAMP WITH TIME ZONE,
@@ -97,27 +63,31 @@ CREATE TABLE "balloon" (
 
   CONSTRAINT "balloon_pkey" PRIMARY KEY ("id", "companyId"),
   CONSTRAINT "balloon_id_unique" UNIQUE ("id"),
-  CONSTRAINT "balloon_balloonAnchorId_unique" UNIQUE ("balloonAnchorId"),
+  CONSTRAINT "balloon_pageNumber_check" CHECK ("pageNumber" > 0),
+  CONSTRAINT "balloon_regionX_check" CHECK ("regionX" >= 0 AND "regionX" <= 1),
+  CONSTRAINT "balloon_regionY_check" CHECK ("regionY" >= 0 AND "regionY" <= 1),
+  CONSTRAINT "balloon_regionWidth_check" CHECK ("regionWidth" > 0 AND "regionWidth" <= 1),
+  CONSTRAINT "balloon_regionHeight_check" CHECK ("regionHeight" > 0 AND "regionHeight" <= 1),
+  CONSTRAINT "balloon_region_xw_bounds_check" CHECK ("regionX" + "regionWidth" <= 1),
+  CONSTRAINT "balloon_region_yh_bounds_check" CHECK ("regionY" + "regionHeight" <= 1),
   CONSTRAINT "balloon_xCoordinate_check" CHECK ("xCoordinate" >= 0 AND "xCoordinate" <= 1),
   CONSTRAINT "balloon_yCoordinate_check" CHECK ("yCoordinate" >= 0 AND "yCoordinate" <= 1),
-  CONSTRAINT "balloon_anchorX_check" CHECK ("anchorX" IS NULL OR ("anchorX" >= 0 AND "anchorX" <= 1)),
-  CONSTRAINT "balloon_anchorY_check" CHECK ("anchorY" IS NULL OR ("anchorY" >= 0 AND "anchorY" <= 1)),
 
   CONSTRAINT "balloon_companyId_fkey"
     FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "balloon_document_company_fkey"
+    FOREIGN KEY ("inspectionDocumentId", "companyId")
+    REFERENCES "inspectionDocument"("id", "companyId")
+    ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT "balloon_createdBy_fkey"
     FOREIGN KEY ("createdBy") REFERENCES "user"("id") ON UPDATE CASCADE,
   CONSTRAINT "balloon_updatedBy_fkey"
-    FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "balloon_anchor_company_fkey"
-    FOREIGN KEY ("balloonAnchorId", "companyId")
-    REFERENCES "balloonAnchor"("id", "companyId")
-    ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE
 );
 
 CREATE TABLE "balloonAnnotation" (
   "id" TEXT NOT NULL DEFAULT id('ban'),
-  "balloonDocumentId" TEXT NOT NULL,
+  "inspectionDocumentId" TEXT NOT NULL,
   "companyId" TEXT NOT NULL,
   "pageNumber" INTEGER NOT NULL,
   "xCoordinate" DOUBLE PRECISION NOT NULL,
@@ -145,87 +115,59 @@ CREATE TABLE "balloonAnnotation" (
   CONSTRAINT "balloonAnnotation_updatedBy_fkey"
     FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
   CONSTRAINT "balloonAnnotation_drawing_company_fkey"
-    FOREIGN KEY ("balloonDocumentId", "companyId")
-    REFERENCES "balloonDocument"("id", "companyId")
+    FOREIGN KEY ("inspectionDocumentId", "companyId")
+    REFERENCES "inspectionDocument"("id", "companyId")
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE INDEX "balloonDocument_companyId_idx" ON "balloonDocument" ("companyId");
-CREATE INDEX "balloonDocument_qualityDocumentId_idx" ON "balloonDocument" ("qualityDocumentId");
-
-CREATE INDEX "balloonAnchor_companyId_idx" ON "balloonAnchor" ("companyId");
-CREATE INDEX "balloonAnchor_balloonDocumentId_idx" ON "balloonAnchor" ("balloonDocumentId");
-CREATE INDEX "balloonAnchor_drawing_page_idx" ON "balloonAnchor" ("balloonDocumentId", "companyId", "pageNumber");
-CREATE INDEX "balloonAnchor_active_page_idx"
-  ON "balloonAnchor" ("balloonDocumentId", "companyId", "pageNumber")
-  WHERE "deletedAt" IS NULL;
+CREATE INDEX "inspectionDocument_companyId_idx" ON "inspectionDocument" ("companyId");
+CREATE INDEX "inspectionDocument_partId_idx" ON "inspectionDocument" ("partId");
 
 CREATE INDEX "balloon_companyId_idx" ON "balloon" ("companyId");
-CREATE INDEX "balloon_balloonAnchorId_idx" ON "balloon" ("balloonAnchorId");
-CREATE INDEX "balloon_active_company_idx"
-  ON "balloon" ("companyId")
+CREATE INDEX "balloon_inspectionDocumentId_idx" ON "balloon" ("inspectionDocumentId");
+CREATE INDEX "balloon_document_page_idx" ON "balloon" ("inspectionDocumentId", "companyId", "pageNumber");
+CREATE INDEX "balloon_active_document_idx"
+  ON "balloon" ("inspectionDocumentId", "companyId")
   WHERE "deletedAt" IS NULL;
 
 CREATE INDEX "balloonAnnotation_companyId_idx" ON "balloonAnnotation" ("companyId");
-CREATE INDEX "balloonAnnotation_drawing_page_idx" ON "balloonAnnotation" ("balloonDocumentId", "companyId", "pageNumber");
+CREATE INDEX "balloonAnnotation_drawing_page_idx" ON "balloonAnnotation" ("inspectionDocumentId", "companyId", "pageNumber");
 CREATE INDEX "balloonAnnotation_active_page_idx"
-  ON "balloonAnnotation" ("balloonDocumentId", "companyId", "pageNumber")
+  ON "balloonAnnotation" ("inspectionDocumentId", "companyId", "pageNumber")
   WHERE "deletedAt" IS NULL;
 
 CREATE OR REPLACE FUNCTION enforce_unique_balloon_label_per_page()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
-DECLARE
-  v_page_number INTEGER;
-  v_conflict_id TEXT;
 BEGIN
-  SELECT s."pageNumber"
-    INTO v_page_number
-  FROM "balloonAnchor" s
-  WHERE s."id" = NEW."balloonAnchorId"
-    AND s."companyId" = NEW."companyId"
-    AND s."deletedAt" IS NULL;
-
-  IF v_page_number IS NULL THEN
-    RAISE EXCEPTION 'anchor % not found or deleted for company %', NEW."balloonAnchorId", NEW."companyId";
+  IF EXISTS (
+    SELECT 1 FROM "balloon"
+    WHERE "inspectionDocumentId" = NEW."inspectionDocumentId"
+      AND "companyId" = NEW."companyId"
+      AND "pageNumber" = NEW."pageNumber"
+      AND "label" = NEW."label"
+      AND "deletedAt" IS NULL
+      AND "id" <> COALESCE(NEW."id", '')
+  ) THEN
+    RAISE EXCEPTION 'duplicate balloon label "%" on inspectionDocument page %', NEW."label", NEW."pageNumber";
   END IF;
-
-  SELECT b."id"
-    INTO v_conflict_id
-  FROM "balloon" b
-  JOIN "balloonAnchor" s ON s."id" = b."balloonAnchorId" AND s."companyId" = b."companyId"
-  JOIN "balloonAnchor" new_s ON new_s."id" = NEW."balloonAnchorId" AND new_s."companyId" = NEW."companyId"
-  WHERE s."balloonDocumentId" = new_s."balloonDocumentId"
-    AND b."companyId" = NEW."companyId"
-    AND b."label" = NEW."label"
-    AND s."pageNumber" = v_page_number
-    AND b."deletedAt" IS NULL
-    AND s."deletedAt" IS NULL
-    AND b."id" <> COALESCE(NEW."id", '')
-  LIMIT 1;
-
-  IF v_conflict_id IS NOT NULL THEN
-    RAISE EXCEPTION 'duplicate balloon label "%" on balloonDocument page %', NEW."label", v_page_number;
-  END IF;
-
   RETURN NEW;
 END;
 $$;
 
 CREATE TRIGGER "trg_balloon_unique_label_per_page"
-BEFORE INSERT OR UPDATE OF "balloonAnchorId", "label", "deletedAt"
+BEFORE INSERT OR UPDATE OF "inspectionDocumentId", "pageNumber", "label", "deletedAt"
 ON "balloon"
 FOR EACH ROW
 WHEN (NEW."deletedAt" IS NULL)
 EXECUTE FUNCTION enforce_unique_balloon_label_per_page();
 
-ALTER TABLE "balloonDocument" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "balloonAnchor" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "inspectionDocument" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "balloon" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "balloonAnnotation" ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "SELECT" ON "public"."balloonDocument"
+CREATE POLICY "SELECT" ON "public"."inspectionDocument"
 FOR SELECT USING (
   "companyId" = ANY (
     (
@@ -235,7 +177,7 @@ FOR SELECT USING (
   )
 );
 
-CREATE POLICY "INSERT" ON "public"."balloonDocument"
+CREATE POLICY "INSERT" ON "public"."inspectionDocument"
 FOR INSERT WITH CHECK (
   "companyId" = ANY (
     (
@@ -245,7 +187,7 @@ FOR INSERT WITH CHECK (
   )
 );
 
-CREATE POLICY "UPDATE" ON "public"."balloonDocument"
+CREATE POLICY "UPDATE" ON "public"."inspectionDocument"
 FOR UPDATE USING (
   "companyId" = ANY (
     (
@@ -255,47 +197,7 @@ FOR UPDATE USING (
   )
 );
 
-CREATE POLICY "DELETE" ON "public"."balloonDocument"
-FOR DELETE USING (
-  "companyId" = ANY (
-    (
-      SELECT
-        get_companies_with_employee_permission('quality_delete')
-    )::text[]
-  )
-);
-
-CREATE POLICY "SELECT" ON "public"."balloonAnchor"
-FOR SELECT USING (
-  "companyId" = ANY (
-    (
-      SELECT
-        get_companies_with_employee_role()
-    )::text[]
-  )
-);
-
-CREATE POLICY "INSERT" ON "public"."balloonAnchor"
-FOR INSERT WITH CHECK (
-  "companyId" = ANY (
-    (
-      SELECT
-        get_companies_with_employee_permission('quality_create')
-    )::text[]
-  )
-);
-
-CREATE POLICY "UPDATE" ON "public"."balloonAnchor"
-FOR UPDATE USING (
-  "companyId" = ANY (
-    (
-      SELECT
-        get_companies_with_employee_permission('quality_update')
-    )::text[]
-  )
-);
-
-CREATE POLICY "DELETE" ON "public"."balloonAnchor"
+CREATE POLICY "DELETE" ON "public"."inspectionDocument"
 FOR DELETE USING (
   "companyId" = ANY (
     (
