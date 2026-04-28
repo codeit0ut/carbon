@@ -35,7 +35,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return data({ success: false, message: "Missing id" }, { status: 400 });
 
   const formData = await request.formData();
-  const name = formData.get("name") as string;
   const pdfUrl = formData.get("pdfUrl") as string | null;
   const anchorsRaw = formData.get("anchors") as string | null;
   const balloonsRaw = formData.get("balloons") as string | null;
@@ -58,7 +57,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const result = await upsertInspectionDocument(client, {
     id,
-    name,
     pdfUrl: pdfUrl ?? undefined,
     pageCount,
     defaultPageWidth,
@@ -88,7 +86,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     label: string;
     xCoordinate: number;
     yCoordinate: number;
-    data: Record<string, unknown>;
+    nominalValue?: string | null;
+    tolerancePlus?: string | null;
+    toleranceMinus?: string | null;
+    unit?: string | null;
     description?: string | null;
   };
   type BalloonUpdatePayload = {
@@ -96,7 +97,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     label?: string;
     xCoordinate?: number;
     yCoordinate?: number;
-    data?: Record<string, unknown>;
+    nominalValue?: string | null;
+    tolerancePlus?: string | null;
+    toleranceMinus?: string | null;
+    unit?: string | null;
     description?: string | null;
   };
 
@@ -133,18 +137,30 @@ export async function action({ request, params }: ActionFunctionArgs) {
             typeof (item as { label?: unknown }).label === "string" &&
             typeof (item as { xCoordinate?: unknown }).xCoordinate ===
               "number" &&
-            typeof (item as { yCoordinate?: unknown }).yCoordinate ===
-              "number" &&
-            typeof (item as { data?: unknown }).data === "object" &&
-            (item as { data?: unknown }).data !== null
+            typeof (item as { yCoordinate?: unknown }).yCoordinate === "number"
           ) {
+            const row = item as Record<string, unknown>;
             create.push({
               tempBalloonAnchorId: (item as { tempBalloonAnchorId: string })
                 .tempBalloonAnchorId,
               label: (item as { label: string }).label,
               xCoordinate: (item as { xCoordinate: number }).xCoordinate,
               yCoordinate: (item as { yCoordinate: number }).yCoordinate,
-              data: (item as { data: Record<string, unknown> }).data,
+              ...(typeof row.nominalValue === "string" ||
+              row.nominalValue === null
+                ? { nominalValue: row.nominalValue as string | null }
+                : {}),
+              ...(typeof row.tolerancePlus === "string" ||
+              row.tolerancePlus === null
+                ? { tolerancePlus: row.tolerancePlus as string | null }
+                : {}),
+              ...(typeof row.toleranceMinus === "string" ||
+              row.toleranceMinus === null
+                ? { toleranceMinus: row.toleranceMinus as string | null }
+                : {}),
+              ...(typeof row.unit === "string" || row.unit === null
+                ? { unit: row.unit as string | null }
+                : {}),
               description:
                 (item as { description?: unknown }).description === undefined
                   ? undefined
@@ -171,10 +187,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
               ...(typeof u.yCoordinate === "number"
                 ? { yCoordinate: u.yCoordinate }
                 : {}),
-              ...(typeof u.data === "object" &&
-              u.data !== null &&
-              !Array.isArray(u.data)
-                ? { data: u.data as Record<string, unknown> }
+              ...(typeof u.nominalValue === "string" || u.nominalValue === null
+                ? { nominalValue: u.nominalValue as string | null }
+                : {}),
+              ...(typeof u.tolerancePlus === "string" ||
+              u.tolerancePlus === null
+                ? { tolerancePlus: u.tolerancePlus as string | null }
+                : {}),
+              ...(typeof u.toleranceMinus === "string" ||
+              u.toleranceMinus === null
+                ? { toleranceMinus: u.toleranceMinus as string | null }
+                : {}),
+              ...(typeof u.unit === "string" || u.unit === null
+                ? { unit: u.unit as string | null }
                 : {}),
               ...(u.description !== undefined
                 ? { description: u.description as string | null }
@@ -308,12 +333,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
             label: b.label,
             xCoordinate: b.xCoordinate,
             yCoordinate: b.yCoordinate,
-            data: b.data,
-            description:
-              b.description ??
-              (typeof b.data.featureName === "string"
-                ? b.data.featureName
-                : null)
+            nominalValue: b.nominalValue ?? null,
+            tolerancePlus: b.tolerancePlus ?? null,
+            toleranceMinus: b.toleranceMinus ?? null,
+            unit: b.unit ?? null,
+            description: b.description ?? null
           };
         })
       });
@@ -378,7 +402,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
       if (typeof b.label === "string") entry.label = b.label;
       if (typeof b.xCoordinate === "number") entry.xCoordinate = b.xCoordinate;
       if (typeof b.yCoordinate === "number") entry.yCoordinate = b.yCoordinate;
-      if (b.data !== undefined) entry.data = b.data;
+      if (b.nominalValue !== undefined) entry.nominalValue = b.nominalValue;
+      if (b.tolerancePlus !== undefined) entry.tolerancePlus = b.tolerancePlus;
+      if (b.toleranceMinus !== undefined)
+        entry.toleranceMinus = b.toleranceMinus;
+      if (b.unit !== undefined) entry.unit = b.unit;
       if (b.description !== undefined) entry.description = b.description;
       updateMap.set(b.id, entry);
     }

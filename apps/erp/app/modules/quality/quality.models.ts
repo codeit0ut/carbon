@@ -96,10 +96,9 @@ export const balloonCharacteristicType = [
 
 export const inspectionDocumentValidator = z.object({
   id: zfd.text(z.string().optional()),
-  name: z.string().min(1, { message: "Name is required" }),
+  name: zfd.text(z.string().optional()),
   partId: z.string().min(1, { message: "Part is required" }),
   drawingNumber: zfd.text(z.string().optional()),
-  revision: zfd.text(z.string().optional()),
   pdfUrl: zfd.text(z.string().optional()),
   annotations: zfd.text(z.string().optional()),
   features: zfd.text(z.string().optional())
@@ -127,7 +126,10 @@ export const balloonCreateFromPayloadItemValidator = z.object({
   label: z.string().min(1),
   xCoordinate: z.number(),
   yCoordinate: z.number(),
-  data: z.record(z.unknown()),
+  nominalValue: z.string().nullable().optional(),
+  tolerancePlus: z.string().nullable().optional(),
+  toleranceMinus: z.string().nullable().optional(),
+  unit: z.string().nullable().optional(),
   description: z.string().nullable().optional()
 });
 
@@ -141,7 +143,10 @@ export const balloonUpdateItemValidator = z.object({
   label: z.string().optional(),
   xCoordinate: z.number().optional(),
   yCoordinate: z.number().optional(),
-  data: z.record(z.unknown()).optional(),
+  nominalValue: z.string().nullable().optional(),
+  tolerancePlus: z.string().nullable().optional(),
+  toleranceMinus: z.string().nullable().optional(),
+  unit: z.string().nullable().optional(),
   description: z.string().nullable().optional()
 });
 

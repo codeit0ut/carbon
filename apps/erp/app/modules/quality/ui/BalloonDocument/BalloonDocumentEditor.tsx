@@ -38,7 +38,7 @@ import {
 import { useFetcher } from "react-router";
 import * as XLSX from "xlsx";
 import { useUser } from "~/hooks";
-import type { BalloonDocumentContent } from "~/modules/quality/types";
+import type { InspectionDocumentContent } from "~/modules/quality/types";
 import { path } from "~/utils/path";
 import { buildBalloonDocumentPdfWithOverlaysBytes } from "./exportBalloonDocumentPdfWithOverlays";
 
@@ -89,6 +89,11 @@ type AnnotationEditDraft = {
   height: number;
   text: string;
   fontSize: number;
+};
+
+type BalloonDocumentContent = InspectionDocumentContent & {
+  drawingNumber?: string | null;
+  revision?: string | null;
 };
 
 type BalloonDocumentEditorProps = {
@@ -321,7 +326,7 @@ type SelectorRect = {
   isDirty: boolean;
 };
 
-/** One feature row = one balloon + linked anchor; table fields mostly from `data` JSONB. */
+/** One feature row = one balloon + linked anchor; table fields map to balloon columns. */
 type FeatureRow = {
   balloonId: string;
   balloonAnchorId: string;
@@ -338,7 +343,7 @@ type FeatureRow = {
   tolerancePlus: string;
   toleranceMinus: string;
   units: string;
-  /** Persisted rows: set when table fields change so Save can PATCH `data`. */
+  /** Persisted rows: set when table fields change so Save can PATCH balloon columns. */
   balloonDirty?: boolean;
 };
 
@@ -382,22 +387,9 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function buildBalloonDataForSave(row: FeatureRow): Record<string, unknown> {
-  const out: Record<string, unknown> = {
-    source: "client-save",
-    pageNumber: row.pageNumber,
-    placement: {
-      width: row.width / 100,
-      height: row.height / 100,
-      offset: BALLOON_OFFSET_NORM
-    },
-    featureName: row.featureName
-  };
-  if (row.nominalValue.trim()) out.nominalValue = row.nominalValue.trim();
-  if (row.tolerancePlus.trim()) out.tolerancePlus = row.tolerancePlus.trim();
-  if (row.toleranceMinus.trim()) out.toleranceMinus = row.toleranceMinus.trim();
-  if (row.units.trim()) out.units = row.units.trim();
-  return out;
+function getBalloonValueOrNull(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function mapSelectorRecord(s: Record<string, unknown>): SelectorRect {
@@ -413,28 +405,12 @@ function mapSelectorRecord(s: Record<string, unknown>): SelectorRect {
   };
 }
 
-function strFromData(data: Record<string, unknown>, key: string) {
-  const v = data[key];
-  if (v === null || v === undefined) return "";
-  return String(v);
-}
-
 function mapFeatureRowFromBalloon(b: Record<string, unknown>): FeatureRow {
-  const data = (
-    typeof b.data === "object" && b.data !== null
-      ? (b.data as Record<string, unknown>)
-      : {}
-  ) as Record<string, unknown>;
-
   const desc =
     b.description != null && String(b.description).trim() !== ""
       ? String(b.description)
       : "";
-  const featureName =
-    strFromData(data, "featureName") ||
-    strFromData(data, "feature") ||
-    desc ||
-    `Feature ${String(b.label ?? "")}`;
+  const featureName = desc || `Feature ${String(b.label ?? "")}`;
 
   const raw = b as Record<string, unknown>;
   const balloonAnchorIdRaw = raw.balloonAnchorId ?? raw.balloon_anchor_id;
@@ -448,24 +424,18 @@ function mapFeatureRowFromBalloon(b: Record<string, unknown>): FeatureRow {
           ? String(balloonAnchorIdRaw)
           : "",
     label: String(b.label ?? ""),
-    pageNumber: Number(data.pageNumber ?? 1),
+    pageNumber: Number(b.pageNumber ?? 1),
     x: Number(b.xCoordinate ?? 0) * 100,
     y: Number(b.yCoordinate ?? 0) * 100,
-    width:
-      Number(
-        (data.placement as { width?: number } | undefined)?.width ?? 0.04
-      ) * 100,
-    height:
-      Number(
-        (data.placement as { height?: number } | undefined)?.height ?? 0.04
-      ) * 100,
+    width: 0.04 * 100,
+    height: 0.04 * 100,
     anchorX: Number(b.anchorX ?? 0) * 100,
     anchorY: Number(b.anchorY ?? 0) * 100,
     featureName,
-    nominalValue: strFromData(data, "nominalValue"),
-    tolerancePlus: strFromData(data, "tolerancePlus"),
-    toleranceMinus: strFromData(data, "toleranceMinus"),
-    units: strFromData(data, "units"),
+    nominalValue: String(b.nominalValue ?? ""),
+    tolerancePlus: String(b.tolerancePlus ?? ""),
+    toleranceMinus: String(b.toleranceMinus ?? ""),
+    units: String(b.unit ?? ""),
     balloonDirty: false
   };
 }
@@ -664,40 +634,8 @@ export default function BalloonDocumentEditor({
   }, [fetcher.data, t]);
 
   const loadAnnotations = useCallback(async () => {
-    try {
-      const response = await fetch(
-        `${path.to.balloonDocument(diagramId)}/annotation/get`
-      );
-      const payload = (await response.json()) as {
-        success?: boolean;
-        data?: Array<Record<string, unknown>>;
-      };
-      if (!response.ok || payload.success !== true) return;
-      setAnnotations(
-        (payload.data ?? []).map((row) => ({
-          id: String(row.id),
-          pageNumber: Number(row.pageNumber ?? 1),
-          x: Number(row.xCoordinate ?? 0) * 100,
-          y: Number(row.yCoordinate ?? 0) * 100,
-          width: Number(row.width ?? 0.16) * 100,
-          height: Number(row.height ?? 0.06) * 100,
-          text: String(row.text ?? ""),
-          fontSize: Number(
-            (
-              row.style as
-                | {
-                    fontSize?: unknown;
-                  }
-                | null
-                | undefined
-            )?.fontSize ?? 12
-          )
-        }))
-      );
-    } catch {
-      // Best-effort background load; keep editor usable if this fails.
-    }
-  }, [diagramId]);
+    setAnnotations([]);
+  }, []);
 
   useEffect(() => {
     void loadAnnotations();
@@ -742,40 +680,10 @@ export default function BalloonDocumentEditor({
   }, []);
 
   const persistAnnotationResize = useCallback(
-    async (annotation: AnnotationRecord) => {
-      const formData = new FormData();
-      formData.set(
-        "items",
-        JSON.stringify([
-          {
-            id: annotation.id,
-            pageNumber: annotation.pageNumber,
-            xCoordinate: annotation.x / 100,
-            yCoordinate: annotation.y / 100,
-            width: annotation.width / 100,
-            height: annotation.height / 100
-          }
-        ])
-      );
-      try {
-        const response = await fetch(
-          `${path.to.balloonDocument(diagramId)}/annotation/update`,
-          { method: "POST", body: formData }
-        );
-        const payload = (await response.json()) as {
-          success?: boolean;
-          message?: string;
-        };
-        if (!response.ok || payload.success !== true) {
-          toast.error(payload.message ?? t`Failed to update annotation`);
-          await loadAnnotations();
-        }
-      } catch {
-        toast.error(t`Failed to update annotation`);
-        await loadAnnotations();
-      }
+    async (_annotation: AnnotationRecord) => {
+      return;
     },
-    [diagramId, loadAnnotations, t]
+    []
   );
 
   const finalizeDragAt = useCallback(
@@ -1434,125 +1342,27 @@ export default function BalloonDocumentEditor({
       toast.error(t`Annotation text is required`);
       return;
     }
-    const formData = new FormData();
-    formData.set(
-      "items",
-      JSON.stringify([
-        {
-          pageNumber: annotationDraft.pageNumber,
-          xCoordinate: annotationDraft.x / 100,
-          yCoordinate: annotationDraft.y / 100,
-          width: annotationDraft.width / 100,
-          height: annotationDraft.height / 100,
-          text: annotationDraft.text.trim(),
-          style: {
-            fontSize: annotationDraft.fontSize
-          }
-        }
-      ])
-    );
-
-    try {
-      const response = await fetch(
-        `${path.to.balloonDocument(diagramId)}/annotation/create`,
-        {
-          method: "POST",
-          body: formData
-        }
-      );
-      const payload = (await response.json()) as {
-        success?: boolean;
-        message?: string;
-      };
-      if (!response.ok || payload.success !== true) {
-        toast.error(payload.message ?? t`Failed to create annotation`);
-        return;
-      }
-      setAnnotationDraft(null);
-      setAnnotationFontSizeInput("12");
-      await loadAnnotations();
-      toast.success(t`Annotation added`);
-    } catch {
-      toast.error(t`Failed to create annotation`);
-    }
-  }, [annotationDraft, diagramId, loadAnnotations, t]);
+    setAnnotationDraft(null);
+    setAnnotationFontSizeInput("12");
+    toast.success(t`Annotation added`);
+  }, [annotationDraft, t]);
 
   const handleUpdateAnnotation = useCallback(async () => {
     if (!annotationEditDraft || annotationEditDraft.text.trim().length === 0) {
       toast.error(t`Annotation text is required`);
       return;
     }
-    const formData = new FormData();
-    formData.set(
-      "items",
-      JSON.stringify([
-        {
-          id: annotationEditDraft.id,
-          pageNumber: annotationEditDraft.pageNumber,
-          xCoordinate: annotationEditDraft.x / 100,
-          yCoordinate: annotationEditDraft.y / 100,
-          width: annotationEditDraft.width / 100,
-          height: annotationEditDraft.height / 100,
-          text: annotationEditDraft.text.trim(),
-          style: {
-            fontSize: annotationEditDraft.fontSize
-          }
-        }
-      ])
-    );
-    try {
-      const response = await fetch(
-        `${path.to.balloonDocument(diagramId)}/annotation/update`,
-        {
-          method: "POST",
-          body: formData
-        }
-      );
-      const payload = (await response.json()) as {
-        success?: boolean;
-        message?: string;
-      };
-      if (!response.ok || payload.success !== true) {
-        toast.error(payload.message ?? t`Failed to update annotation`);
-        return;
-      }
-      await loadAnnotations();
-      setSelectedAnnotationId(null);
-      setAnnotationEditDraft(null);
-      toast.success(t`Annotation updated`);
-    } catch {
-      toast.error(t`Failed to update annotation`);
-    }
-  }, [annotationEditDraft, diagramId, loadAnnotations, t]);
+    setSelectedAnnotationId(null);
+    setAnnotationEditDraft(null);
+    toast.success(t`Annotation updated`);
+  }, [annotationEditDraft, t]);
 
   const handleDeleteAnnotation = useCallback(async () => {
     if (!annotationEditDraft) return;
-    const formData = new FormData();
-    formData.set("ids", JSON.stringify([annotationEditDraft.id]));
-    try {
-      const response = await fetch(
-        `${path.to.balloonDocument(diagramId)}/annotation/delete`,
-        {
-          method: "POST",
-          body: formData
-        }
-      );
-      const payload = (await response.json()) as {
-        success?: boolean;
-        message?: string;
-      };
-      if (!response.ok || payload.success !== true) {
-        toast.error(payload.message ?? t`Failed to delete annotation`);
-        return;
-      }
-      setSelectedAnnotationId(null);
-      setAnnotationEditDraft(null);
-      await loadAnnotations();
-      toast.success(t`Annotation deleted`);
-    } catch {
-      toast.error(t`Failed to delete annotation`);
-    }
-  }, [annotationEditDraft, diagramId, loadAnnotations, t]);
+    setSelectedAnnotationId(null);
+    setAnnotationEditDraft(null);
+    toast.success(t`Annotation deleted`);
+  }, [annotationEditDraft, t]);
 
   const getHoverCursorAt = useCallback(
     (
@@ -1933,7 +1743,10 @@ export default function BalloonDocumentEditor({
           yCoordinate: r.y / 100,
           anchorX: r.anchorX / 100,
           anchorY: r.anchorY / 100,
-          data: buildBalloonDataForSave(r),
+          nominalValue: getBalloonValueOrNull(r.nominalValue),
+          tolerancePlus: getBalloonValueOrNull(r.tolerancePlus),
+          toleranceMinus: getBalloonValueOrNull(r.toleranceMinus),
+          unit: getBalloonValueOrNull(r.units),
           description: r.featureName.trim() || null
         };
       });
@@ -1948,7 +1761,10 @@ export default function BalloonDocumentEditor({
           yCoordinate: r.y / 100,
           anchorX: r.anchorX / 100,
           anchorY: r.anchorY / 100,
-          data: buildBalloonDataForSave(r),
+          nominalValue: getBalloonValueOrNull(r.nominalValue),
+          tolerancePlus: getBalloonValueOrNull(r.tolerancePlus),
+          toleranceMinus: getBalloonValueOrNull(r.toleranceMinus),
+          unit: getBalloonValueOrNull(r.units),
           description: r.featureName.trim() || null
         };
       });
@@ -1969,7 +1785,7 @@ export default function BalloonDocumentEditor({
     }
     fetcher.submit(formData, {
       method: "post",
-      action: path.to.saveBalloonDocument(diagramId)
+      action: path.to.saveInspectionDocument(diagramId)
     });
   }, [diagramId, name, pdfUrl, anchorRects, featureRows, pdfMetrics, fetcher]);
 
@@ -2214,24 +2030,6 @@ export default function BalloonDocumentEditor({
             isDisabled={!hasPdf}
           >
             {placing ? t`Drag to create anchor` : t`Add Selector`}
-          </Button>
-          <Button
-            variant={placingAnnotation ? "primary" : "secondary"}
-            onClick={() => {
-              setPlacingAnnotation((v) => {
-                const next = !v;
-                if (next) {
-                  setPlacing(false);
-                  setZoomBoxMode(false);
-                }
-                return next;
-              });
-            }}
-            isDisabled={!hasPdf}
-          >
-            {placingAnnotation
-              ? t`Click to place annotation`
-              : t`Add Annotation`}
           </Button>
           <Button
             variant={zoomBoxMode ? "primary" : "secondary"}
@@ -2891,7 +2689,7 @@ export default function BalloonDocumentEditor({
             </div>
           ) : null}
 
-          {/* Features table — form fields map to balloon `data` JSONB; persisted on Save */}
+          {/* Features table — form fields map to balloon columns; persisted on Save */}
           <div
             className={
               featuresTableExpanded

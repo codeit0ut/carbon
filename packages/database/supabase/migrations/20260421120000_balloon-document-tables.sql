@@ -8,14 +8,13 @@ CREATE TABLE "inspectionDocument" (
   "companyId" TEXT NOT NULL,
   "partId" TEXT NOT NULL,
   "drawingNumber" TEXT,
-  "revision" TEXT,
   "version" INTEGER NOT NULL DEFAULT 0,
-  "storagePath" TEXT NOT NULL,
-  "fileName" TEXT NOT NULL,
+  "storagePath" TEXT,
+  "fileName" TEXT,
   "pageCount" INTEGER,
   "defaultPageWidth" DOUBLE PRECISION,
   "defaultPageHeight" DOUBLE PRECISION,
-  "uploadedBy" TEXT NOT NULL,
+  "uploadedBy" TEXT,
   "deletedAt" TIMESTAMP WITH TIME ZONE,
   "createdBy" TEXT NOT NULL,
   "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -54,7 +53,10 @@ CREATE TABLE "balloon" (
   "xCoordinate" DOUBLE PRECISION NOT NULL,
   "yCoordinate" DOUBLE PRECISION NOT NULL,
   "description" TEXT,
-  "data" JSONB,
+  "nominalValue" TEXT,
+  "tolerancePlus" TEXT,
+  "toleranceMinus" TEXT,
+  "unit" TEXT,
   "deletedAt" TIMESTAMP WITH TIME ZONE,
   "createdBy" TEXT NOT NULL,
   "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -85,41 +87,6 @@ CREATE TABLE "balloon" (
     FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE
 );
 
-CREATE TABLE "balloonAnnotation" (
-  "id" TEXT NOT NULL DEFAULT id('ban'),
-  "inspectionDocumentId" TEXT NOT NULL,
-  "companyId" TEXT NOT NULL,
-  "pageNumber" INTEGER NOT NULL,
-  "xCoordinate" DOUBLE PRECISION NOT NULL,
-  "yCoordinate" DOUBLE PRECISION NOT NULL,
-  "text" TEXT NOT NULL,
-  "width" DOUBLE PRECISION,
-  "height" DOUBLE PRECISION,
-  "rotation" DOUBLE PRECISION NOT NULL DEFAULT 0,
-  "style" JSONB,
-  "deletedAt" TIMESTAMP WITH TIME ZONE,
-  "createdBy" TEXT NOT NULL,
-  "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  "updatedBy" TEXT,
-  "updatedAt" TIMESTAMP WITH TIME ZONE,
-
-  CONSTRAINT "balloonAnnotation_pkey" PRIMARY KEY ("id", "companyId"),
-  CONSTRAINT "balloonAnnotation_id_unique" UNIQUE ("id"),
-  CONSTRAINT "balloonAnnotation_pageNumber_check" CHECK ("pageNumber" > 0),
-  CONSTRAINT "balloonAnnotation_xCoordinate_check" CHECK ("xCoordinate" >= 0 AND "xCoordinate" <= 1),
-  CONSTRAINT "balloonAnnotation_yCoordinate_check" CHECK ("yCoordinate" >= 0 AND "yCoordinate" <= 1),
-  CONSTRAINT "balloonAnnotation_companyId_fkey"
-    FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "balloonAnnotation_createdBy_fkey"
-    FOREIGN KEY ("createdBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "balloonAnnotation_updatedBy_fkey"
-    FOREIGN KEY ("updatedBy") REFERENCES "user"("id") ON UPDATE CASCADE,
-  CONSTRAINT "balloonAnnotation_drawing_company_fkey"
-    FOREIGN KEY ("inspectionDocumentId", "companyId")
-    REFERENCES "inspectionDocument"("id", "companyId")
-    ON DELETE CASCADE ON UPDATE CASCADE
-);
-
 CREATE INDEX "inspectionDocument_companyId_idx" ON "inspectionDocument" ("companyId");
 CREATE INDEX "inspectionDocument_partId_idx" ON "inspectionDocument" ("partId");
 
@@ -128,12 +95,6 @@ CREATE INDEX "balloon_inspectionDocumentId_idx" ON "balloon" ("inspectionDocumen
 CREATE INDEX "balloon_document_page_idx" ON "balloon" ("inspectionDocumentId", "companyId", "pageNumber");
 CREATE INDEX "balloon_active_document_idx"
   ON "balloon" ("inspectionDocumentId", "companyId")
-  WHERE "deletedAt" IS NULL;
-
-CREATE INDEX "balloonAnnotation_companyId_idx" ON "balloonAnnotation" ("companyId");
-CREATE INDEX "balloonAnnotation_drawing_page_idx" ON "balloonAnnotation" ("inspectionDocumentId", "companyId", "pageNumber");
-CREATE INDEX "balloonAnnotation_active_page_idx"
-  ON "balloonAnnotation" ("inspectionDocumentId", "companyId", "pageNumber")
   WHERE "deletedAt" IS NULL;
 
 CREATE OR REPLACE FUNCTION enforce_unique_balloon_label_per_page()
@@ -165,7 +126,6 @@ EXECUTE FUNCTION enforce_unique_balloon_label_per_page();
 
 ALTER TABLE "inspectionDocument" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "balloon" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "balloonAnnotation" ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "SELECT" ON "public"."inspectionDocument"
 FOR SELECT USING (
@@ -247,42 +207,3 @@ FOR DELETE USING (
   )
 );
 
-CREATE POLICY "SELECT" ON "public"."balloonAnnotation"
-FOR SELECT USING (
-  "companyId" = ANY (
-    (
-      SELECT
-        get_companies_with_employee_role()
-    )::text[]
-  )
-);
-
-CREATE POLICY "INSERT" ON "public"."balloonAnnotation"
-FOR INSERT WITH CHECK (
-  "companyId" = ANY (
-    (
-      SELECT
-        get_companies_with_employee_permission('quality_create')
-    )::text[]
-  )
-);
-
-CREATE POLICY "UPDATE" ON "public"."balloonAnnotation"
-FOR UPDATE USING (
-  "companyId" = ANY (
-    (
-      SELECT
-        get_companies_with_employee_permission('quality_update')
-    )::text[]
-  )
-);
-
-CREATE POLICY "DELETE" ON "public"."balloonAnnotation"
-FOR DELETE USING (
-  "companyId" = ANY (
-    (
-      SELECT
-        get_companies_with_employee_permission('quality_delete')
-    )::text[]
-  )
-);

@@ -76,8 +76,6 @@ export type BalloonFeature = {
 };
 
 export type InspectionDocumentContent = {
-  drawingNumber: string | null;
-  revision: string | null;
   pdfUrl: string | null;
   annotations: BalloonAnnotation[];
   features: BalloonFeature[];

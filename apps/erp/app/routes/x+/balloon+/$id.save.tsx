@@ -92,7 +92,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     yCoordinate: number;
     anchorX: number;
     anchorY: number;
-    data: Record<string, unknown>;
+    nominalValue?: string | null;
+    tolerancePlus?: string | null;
+    toleranceMinus?: string | null;
+    unit?: string | null;
     description?: string | null;
   };
   type BalloonUpdatePayload = {
@@ -102,7 +105,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     yCoordinate?: number;
     anchorX?: number;
     anchorY?: number;
-    data?: Record<string, unknown>;
+    nominalValue?: string | null;
+    tolerancePlus?: string | null;
+    toleranceMinus?: string | null;
+    unit?: string | null;
     description?: string | null;
   };
 
@@ -144,10 +150,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
             typeof (item as { yCoordinate?: unknown }).yCoordinate ===
               "number" &&
             typeof (item as { anchorX?: unknown }).anchorX === "number" &&
-            typeof (item as { anchorY?: unknown }).anchorY === "number" &&
-            typeof (item as { data?: unknown }).data === "object" &&
-            (item as { data?: unknown }).data !== null
+            typeof (item as { anchorY?: unknown }).anchorY === "number"
           ) {
+            const row = item as Record<string, unknown>;
             create.push({
               tempBalloonAnchorId: (item as { tempBalloonAnchorId: string })
                 .tempBalloonAnchorId,
@@ -156,7 +161,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
               yCoordinate: (item as { yCoordinate: number }).yCoordinate,
               anchorX: (item as { anchorX: number }).anchorX,
               anchorY: (item as { anchorY: number }).anchorY,
-              data: (item as { data: Record<string, unknown> }).data,
+              ...(typeof row.nominalValue === "string" ||
+              row.nominalValue === null
+                ? { nominalValue: row.nominalValue as string | null }
+                : {}),
+              ...(typeof row.tolerancePlus === "string" ||
+              row.tolerancePlus === null
+                ? { tolerancePlus: row.tolerancePlus as string | null }
+                : {}),
+              ...(typeof row.toleranceMinus === "string" ||
+              row.toleranceMinus === null
+                ? { toleranceMinus: row.toleranceMinus as string | null }
+                : {}),
+              ...(typeof row.unit === "string" || row.unit === null
+                ? { unit: row.unit as string | null }
+                : {}),
               description:
                 (item as { description?: unknown }).description === undefined
                   ? undefined
@@ -185,10 +204,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
                 : {}),
               ...(typeof u.anchorX === "number" ? { anchorX: u.anchorX } : {}),
               ...(typeof u.anchorY === "number" ? { anchorY: u.anchorY } : {}),
-              ...(typeof u.data === "object" &&
-              u.data !== null &&
-              !Array.isArray(u.data)
-                ? { data: u.data as Record<string, unknown> }
+              ...(typeof u.nominalValue === "string" || u.nominalValue === null
+                ? { nominalValue: u.nominalValue as string | null }
+                : {}),
+              ...(typeof u.tolerancePlus === "string" ||
+              u.tolerancePlus === null
+                ? { tolerancePlus: u.tolerancePlus as string | null }
+                : {}),
+              ...(typeof u.toleranceMinus === "string" ||
+              u.toleranceMinus === null
+                ? { toleranceMinus: u.toleranceMinus as string | null }
+                : {}),
+              ...(typeof u.unit === "string" || u.unit === null
+                ? { unit: u.unit as string | null }
                 : {}),
               ...(u.description !== undefined
                 ? { description: u.description as string | null }
@@ -374,10 +402,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
           yCoordinate: b.yCoordinate,
           anchorX: b.anchorX,
           anchorY: b.anchorY,
-          data: b.data,
-          description:
-            b.description ??
-            (typeof b.data.featureName === "string" ? b.data.featureName : null)
+          nominalValue: b.nominalValue ?? null,
+          tolerancePlus: b.tolerancePlus ?? null,
+          toleranceMinus: b.toleranceMinus ?? null,
+          unit: b.unit ?? null,
+          description: b.description ?? null
         }))
       });
 

@@ -1812,7 +1812,6 @@ function mapInspectionDocument(row: Record<string, unknown>) {
     updatedAt: (row.updatedAt as string | null) ?? null,
     content: {
       drawingNumber,
-      revision: (row.revision as string | null) ?? null,
       pdfUrl: toPreviewUrl((row.storagePath as string | null) ?? null),
       annotations: [],
       features: []
@@ -1925,10 +1924,8 @@ export async function upsertInspectionDocument(
 ) {
   const {
     id,
-    name,
     partId,
     drawingNumber,
-    revision,
     pdfUrl,
     pageCount,
     defaultPageWidth,
@@ -2001,12 +1998,15 @@ export async function upsertInspectionDocument(
     }
 
     const updatePayload: Record<string, unknown> = {
-      drawingNumber: drawingNumber ?? name,
-      revision: revision ?? null,
-      partId,
       updatedBy: updatedBy ?? createdBy,
       updatedAt: new Date().toISOString()
     };
+    if (drawingNumber !== undefined) {
+      updatePayload.drawingNumber = drawingNumber ?? null;
+    }
+    if (partId !== undefined) {
+      updatePayload.partId = partId;
+    }
 
     if (storagePath) {
       updatePayload.storagePath = storagePath;
@@ -2033,14 +2033,7 @@ export async function upsertInspectionDocument(
   if (!companyId) {
     return {
       data: null,
-      error: { message: "companyId is required to create balloon document" }
-    };
-  }
-
-  if (!storagePath) {
-    return {
-      data: null,
-      error: { message: "PDF upload is required to create balloon document" }
+      error: { message: "companyId is required to create inspection document" }
     };
   }
 
@@ -2049,17 +2042,20 @@ export async function upsertInspectionDocument(
     .insert({
       companyId,
       partId,
-      drawingNumber: drawingNumber ?? name,
-      revision: revision ?? null,
+      drawingNumber: drawingNumber ?? null,
       version: 0,
-      storagePath,
-      fileName: fileNameFromPath(storagePath),
+      ...(storagePath
+        ? {
+            storagePath,
+            fileName: fileNameFromPath(storagePath),
+            uploadedBy: createdBy
+          }
+        : {}),
       ...(pageCount && pageCount > 0 ? { pageCount } : {}),
       ...(defaultPageWidth && defaultPageWidth > 0 ? { defaultPageWidth } : {}),
       ...(defaultPageHeight && defaultPageHeight > 0
         ? { defaultPageHeight }
         : {}),
-      uploadedBy: createdBy,
       createdBy
     })
     .select("id")
@@ -2132,7 +2128,10 @@ function mapBalloon(row: Record<string, unknown>) {
     xCoordinate: Number(row.xCoordinate),
     yCoordinate: Number(row.yCoordinate),
     description: (row.description as string | null) ?? null,
-    data: (row.data as Record<string, unknown> | null) ?? null,
+    nominalValue: (row.nominalValue as string | null) ?? null,
+    tolerancePlus: (row.tolerancePlus as string | null) ?? null,
+    toleranceMinus: (row.toleranceMinus as string | null) ?? null,
+    unit: (row.unit as string | null) ?? null,
     createdBy: String(row.createdBy),
     updatedBy: (row.updatedBy as string | null) ?? null,
     createdAt: String(row.createdAt),
@@ -2334,11 +2333,10 @@ export async function createBalloonsForAnchors(
         label,
         xCoordinate: placed.x,
         yCoordinate: placed.y,
-        data: {
-          source: "anchor-auto",
-          pageNumber: s.pageNumber,
-          placement: { width: balloonWidth, height: balloonHeight, offset }
-        },
+        nominalValue: null,
+        tolerancePlus: null,
+        toleranceMinus: null,
+        unit: null,
         createdBy: args.createdBy,
         updatedBy: args.createdBy
       };
@@ -2381,7 +2379,10 @@ export async function createBalloonsFromPayload(
       xCoordinate: b.xCoordinate,
       yCoordinate: b.yCoordinate,
       description: b.description ?? null,
-      data: b.data,
+      nominalValue: b.nominalValue ?? null,
+      tolerancePlus: b.tolerancePlus ?? null,
+      toleranceMinus: b.toleranceMinus ?? null,
+      unit: b.unit ?? null,
       createdBy: args.createdBy,
       updatedBy: args.createdBy
     }))
@@ -2418,7 +2419,11 @@ export async function updateBalloons(
     if (typeof b.label === "string") payload.label = b.label;
     if (typeof b.xCoordinate === "number") payload.xCoordinate = b.xCoordinate;
     if (typeof b.yCoordinate === "number") payload.yCoordinate = b.yCoordinate;
-    if (b.data !== undefined) payload.data = b.data;
+    if (b.nominalValue !== undefined) payload.nominalValue = b.nominalValue;
+    if (b.tolerancePlus !== undefined) payload.tolerancePlus = b.tolerancePlus;
+    if (b.toleranceMinus !== undefined)
+      payload.toleranceMinus = b.toleranceMinus;
+    if (b.unit !== undefined) payload.unit = b.unit;
     if (b.description !== undefined) payload.description = b.description;
 
     const result = await documentClient
